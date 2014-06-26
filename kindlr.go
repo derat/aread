@@ -2,6 +2,7 @@ package main
 
 import (
 	"code.google.com/p/go.net/html"
+	"crypto/sha1"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -12,14 +13,19 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 )
 
 const (
-	ImageSubdir = "images"
-	ContentFile = "index.html"
+	ContentFile           = "index.html"
+	DefaultImageExtension = ".jpg"
 )
+
+func getSha1String(input string) string {
+	h := sha1.New()
+	io.WriteString(h, input)
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
 
 func getStringValue(object *map[string]interface{}, name string) (string, error) {
 	data, ok := (*object)[name]
@@ -56,8 +62,8 @@ func NewContentFetcher(token string) *contentFetcher {
 	return &f
 }
 
-func (f *contentFetcher) processContent(input string) (content string, imageUrls []string, err error) {
-	imageUrls = make([]string, 0, 8)
+func (f *contentFetcher) processContent(input string) (content string, imageUrls map[string]string, err error) {
+	imageUrls = make(map[string]string)
 	z := html.NewTokenizer(strings.NewReader(input))
 	for {
 		if z.Next() == html.ErrorToken {
@@ -70,22 +76,26 @@ func (f *contentFetcher) processContent(input string) (content string, imageUrls
 		if f.ShouldDownloadImages && t.Type == html.StartTagToken && t.Data == "img" {
 			for i := range t.Attr {
 				if t.Attr[i].Key == "src" {
-					imageUrls = append(imageUrls, t.Attr[i].Val)
-					t.Attr[i].Val = filepath.Join(ImageSubdir, strconv.FormatInt(int64(len(imageUrls)), 10))
+					url := t.Attr[i].Val
+					ext := filepath.Ext(url)
+					if len(ext) == 0 {
+						ext = DefaultImageExtension
+					}
+					name := getSha1String(url) + ext
+					imageUrls[name] = url
+					t.Attr[i].Val = name
 				}
 			}
+		} else if t.Type == html.StartTagToken && t.Data == "iframe" {
+			// Readability puts YouTube videos into iframes but kindlegen doesn't know what to do with them.
+			continue
 		}
 		content += t.String()
 	}
 }
 
-func (f *contentFetcher) downloadImages(imageUrls []string, imageDir string) error {
-	if err := os.Mkdir(imageDir, 0755); err != nil {
-		return fmt.Errorf("Unable to create %v: %v", imageDir, err)
-	}
-
-	for i := 0; i < len(imageUrls); i++ {
-		url := imageUrls[i]
+func (f *contentFetcher) downloadImages(urls map[string]string, dir string) error {
+	for filename, url := range urls {
 		body, err := openUrl(url)
 		if err != nil {
 			log.Printf("Failed to download image %v: %v\n", url, err)
@@ -93,10 +103,10 @@ func (f *contentFetcher) downloadImages(imageUrls []string, imageDir string) err
 		}
 		defer body.Close()
 
-		path := filepath.Join(imageDir, strconv.FormatInt(int64(i), 10))
+		path := filepath.Join(dir, filename)
 		file, err := os.Create(path)
 		if err != nil {
-			log.Printf("Unable to open %v for image %v: %v\n", path, url, err)
+			return fmt.Errorf("Unable to open %v for image %v: %v\n", path, url, err)
 			continue
 		}
 		defer file.Close()
@@ -149,11 +159,23 @@ func (f *contentFetcher) GetContent(contentUrl, destDir string) error {
 		return err
 	}
 	defer contentFile.Close()
-	if _, err := contentFile.WriteString(fmt.Sprintf("<html><head><title>%s</title></head><body>%s</body></html>", html.EscapeString(title), content)); err != nil {
+	template := `
+<!DOCTYPE html>
+<html>
+  <head>
+	<meta charset="utf-8">
+    <title>%s</title>
+  </head>
+  <body>
+    %s
+  </body>
+</html>
+`
+	if _, err := contentFile.WriteString(fmt.Sprintf(template, html.EscapeString(title), content)); err != nil {
 		return fmt.Errorf("Failed to write content to %v: %v", contentPath, err)
 	}
 	if f.ShouldDownloadImages {
-		if err = f.downloadImages(imageUrls, filepath.Join(destDir, ImageSubdir)); err != nil {
+		if err = f.downloadImages(imageUrls, destDir); err != nil {
 			return fmt.Errorf("Unable to download images: %v", err)
 		}
 	}
@@ -163,6 +185,10 @@ func (f *contentFetcher) GetContent(contentUrl, destDir string) error {
 func main() {
 	var downloadImages bool
 	var token string
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s [option] ... <url> <dest-dir>\n\nOptions:\n", os.Args[0])
+		flag.PrintDefaults()
+	}
 	flag.BoolVar(&downloadImages, "download-images", true, "Download and write local copies of images")
 	flag.StringVar(&token, "token", "", "Readability.com Parser API token")
 	flag.Parse()
