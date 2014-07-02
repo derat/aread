@@ -16,7 +16,6 @@ import (
 )
 
 const (
-	ContentFile           = "index.html"
 	DefaultImageExtension = ".jpg"
 )
 
@@ -118,7 +117,7 @@ func (f *contentFetcher) downloadImages(urls map[string]string, dir string) erro
 	return nil
 }
 
-func (f *contentFetcher) GetContent(contentUrl, destDir string) error {
+func (f *contentFetcher) GetContent(contentUrl, destPath string) error {
 	url := fmt.Sprintf("https://www.readability.com/api/content/v1/parser?url=%s&token=%s", url.QueryEscape(contentUrl), f.token)
 	body, err := openUrl(url)
 	if err != nil {
@@ -152,21 +151,20 @@ func (f *contentFetcher) GetContent(contentUrl, destDir string) error {
 		return fmt.Errorf("Unable to process content: %v", err)
 	}
 
+	destDir := filepath.Dir(destPath)
 	if err = os.MkdirAll(destDir, 0755); err != nil {
 		return fmt.Errorf("Unable to create %v: %v", destDir, err)
 	}
 
-	contentPath := filepath.Join(destDir, ContentFile)
-	contentFile, err := os.Create(contentPath)
+	contentFile, err := os.Create(destPath)
 	if err != nil {
 		return err
 	}
 	defer contentFile.Close()
 	template := `
-<!DOCTYPE html>
 <html>
   <head>
-	<meta charset="utf-8">
+	<meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
     <title>%s</title>
   </head>
   <body>
@@ -187,7 +185,7 @@ func (f *contentFetcher) GetContent(contentUrl, destDir string) error {
 
 	escTitle := html.EscapeString(title)
 	if _, err := contentFile.WriteString(fmt.Sprintf(template, escTitle, escTitle, authorTag, dateTag, content)); err != nil {
-		return fmt.Errorf("Failed to write content to %v: %v", contentPath, err)
+		return fmt.Errorf("Failed to write content to %v: %v", destPath, err)
 	}
 	if f.ShouldDownloadImages {
 		if err = f.downloadImages(imageUrls, destDir); err != nil {
