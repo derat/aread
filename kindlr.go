@@ -135,14 +135,18 @@ func (f *contentFetcher) GetContent(contentUrl, destDir string) error {
 		return fmt.Errorf("Unable to unmarshal JSON from %v: %v", url, err)
 	}
 
-	title, err := getStringValue(&o, "title")
-	if err != nil {
-		return fmt.Errorf("Unable to get title from %v: %v", url, err)
-	}
 	content, err := getStringValue(&o, "content")
 	if err != nil {
 		return fmt.Errorf("Unable to get content from %v: %v", url, err)
 	}
+
+	title, _ := getStringValue(&o, "title")
+	if len(title) == 0 {
+		title = contentUrl
+	}
+
+	author, _ := getStringValue(&o, "author")
+	pubDate, _ := getStringValue(&o, "date_published")
 
 	content, imageUrls, err := f.processContent(content)
 	if err != nil {
@@ -167,11 +171,23 @@ func (f *contentFetcher) GetContent(contentUrl, destDir string) error {
     <title>%s</title>
   </head>
   <body>
+	<h2>%s</h2>
+	%s
+	%s
     %s
   </body>
 </html>
 `
-	if _, err := contentFile.WriteString(fmt.Sprintf(template, html.EscapeString(title), content)); err != nil {
+	var authorTag, dateTag string
+	if len(author) > 0 {
+		authorTag = fmt.Sprintf("<b>By %s</b>", html.EscapeString(author))
+	}
+	if len(pubDate) > 0 {
+		dateTag = fmt.Sprintf("<p><em>Published %s</em></p>", html.EscapeString(pubDate))
+	}
+
+	escTitle := html.EscapeString(title)
+	if _, err := contentFile.WriteString(fmt.Sprintf(template, escTitle, escTitle, authorTag, dateTag, content)); err != nil {
 		return fmt.Errorf("Failed to write content to %v: %v", contentPath, err)
 	}
 	if f.ShouldDownloadImages {
