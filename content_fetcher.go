@@ -135,17 +135,18 @@ func (f *contentFetcher) GetContent(contentUrl, destPath string) error {
 	}
 
 	type templateData struct {
+		Content template.HTML
 		Title   string
-		Content string
 		Author  string
 		PubDate string
 	}
 	d := &templateData{}
 
-	d.Content, err = getStringValue(&o, "content")
+	content, err := getStringValue(&o, "content")
 	if err != nil {
 		return fmt.Errorf("Unable to get content from %v: %v", url, err)
 	}
+
 	d.Title, _ = getStringValue(&o, "title")
 	if len(d.Title) == 0 {
 		d.Title = contentUrl
@@ -154,10 +155,11 @@ func (f *contentFetcher) GetContent(contentUrl, destPath string) error {
 	d.PubDate, _ = getStringValue(&o, "date_published")
 
 	var imageUrls map[string]string
-	d.Content, imageUrls, err = f.processContent(d.Content)
+	content, imageUrls, err = f.processContent(content)
 	if err != nil {
 		return fmt.Errorf("Unable to process content: %v", err)
 	}
+	d.Content = template.HTML(content)
 
 	destDir := filepath.Dir(destPath)
 	if err = os.MkdirAll(destDir, 0755); err != nil {
@@ -179,8 +181,8 @@ func (f *contentFetcher) GetContent(contentUrl, destPath string) error {
   </head>
   <body>
     <h2>{{.Title}}</h2>
-    {{if .Author}}<b>By {{.Author}}</b>{{end}}
-    {{if .PubDate}}<em>Published {{.PubDate}}</em>{{end}}
+    {{if .Author}}<p><b>By {{.Author}}</b></p>{{end}}
+    {{if .PubDate}}<p><em>Published {{.PubDate}}</em></p>{{end}}
     {{.Content}}
   </body>
 </html>`)

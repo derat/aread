@@ -100,13 +100,10 @@ func main() {
 	if len(flag.Args()) != 1 {
 		log.Fatalln("One URL must be supplied")
 	}
-	if len(recipient) == 0 || len(sender) == 0 {
-		log.Fatalln("Missing recipient or sender")
-	}
 
 	tempDir, err := ioutil.TempDir(baseTempDir, "kindlr.")
 	if err != nil {
-		log.Fatalf("Unable to create temp dir under %v: %v\n", tempDir, err)
+		log.Fatalf("Unable to create temp dir under %v: %v\n", baseTempDir, err)
 	}
 
 	cf := NewContentFetcher(token)
@@ -120,7 +117,10 @@ func main() {
 	if err = buildDoc(contentPath, docPath); err != nil {
 		log.Fatalf("Unable to build doc: %v\n", err)
 	}
-	if err = sendMail(sender, recipient, docPath); err != nil {
+
+	if len(recipient) == 0 || len(sender) == 0 {
+		log.Println("Empty recipient or sender; not sending email")
+	} else if err = sendMail(sender, recipient, docPath); err != nil {
 		log.Fatalf("Unable to send mail: %v\n", err)
 	}
 }
