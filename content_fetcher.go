@@ -174,6 +174,7 @@ func (f *contentFetcher) GetContent(contentUrl, destPath string) error {
 <html>
   <head>
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
+    {{if .author}}<meta content="{{.author}}" name="author"/>{{end}}
     <title>{{.title}}</title>
   </head>
   <body>
