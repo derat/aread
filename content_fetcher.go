@@ -59,16 +59,18 @@ func openUrl(url string) (io.ReadCloser, error) {
 }
 
 type contentFetcher struct {
-	ApiToken             string
-	MailServer           string
-	Sender               string
-	Recipient            string
-	BaseTempDir          string
-	ShouldDownloadImages bool
+	ApiToken       string
+	MailServer     string
+	Sender         string
+	Recipient      string
+	BaseTempDir    string
+	DownloadImages bool
+	KeepTempFiles  bool
 }
 
 func NewContentFetcher() *contentFetcher {
 	f := contentFetcher{}
+	f.DownloadImages = true
 	return &f
 }
 
@@ -83,7 +85,7 @@ func (f *contentFetcher) rewriteContent(input string) (content string, imageUrls
 			return "", nil, z.Err()
 		}
 		t := z.Token()
-		if f.ShouldDownloadImages && t.Type == html.StartTagToken && t.Data == "img" {
+		if f.DownloadImages && t.Type == html.StartTagToken && t.Data == "img" {
 			for i := range t.Attr {
 				if t.Attr[i].Key == "src" {
 					url := t.Attr[i].Val
@@ -199,7 +201,7 @@ func (f *contentFetcher) downloadContent(contentUrl, dir string) error {
 		return fmt.Errorf("Failed to execute template: %v", err)
 	}
 
-	if f.ShouldDownloadImages && len(imageUrls) > 0 {
+	if f.DownloadImages && len(imageUrls) > 0 {
 		totalBytes, err := f.downloadImages(imageUrls, dir)
 		if err != nil {
 			return fmt.Errorf("Unable to download images: %v", err)
@@ -285,6 +287,12 @@ func (f *contentFetcher) ProcessUrl(contentUrl string) error {
 		log.Println("Empty recipient or sender; not sending email")
 	} else if err = f.sendMail(filepath.Join(tempDir, DocFile)); err != nil {
 		return fmt.Errorf("Unable to send mail: %v\n", err)
+	}
+
+	if !f.KeepTempFiles {
+		if err = os.RemoveAll(tempDir); err != nil {
+			return err
+		}
 	}
 	return nil
 }

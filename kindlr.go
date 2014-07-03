@@ -15,7 +15,8 @@ func main() {
 		flag.PrintDefaults()
 	}
 	flag.StringVar(&f.BaseTempDir, "temp-dir", "/tmp", "Base temp directory")
-	flag.BoolVar(&f.ShouldDownloadImages, "download-images", true, "Download and write local copies of images")
+	flag.BoolVar(&f.DownloadImages, "download-images", true, "Download and write local copies of images")
+	flag.BoolVar(&f.KeepTempFiles, "keep-temp-files", false, "Keep temporary files")
 	flag.StringVar(&f.MailServer, "mail-server", "localhost:25", "SMTP server host:port")
 	flag.StringVar(&f.Recipient, "recipient", "", "Recipient email address")
 	flag.StringVar(&f.Sender, "sender", "", "Sender email address")
