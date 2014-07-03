@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"log"
@@ -133,20 +134,27 @@ func (f *contentFetcher) GetContent(contentUrl, destPath string) error {
 		return fmt.Errorf("Unable to unmarshal JSON from %v: %v", url, err)
 	}
 
-	content, err := getStringValue(&o, "content")
+	type templateData struct {
+		title   string
+		content string
+		author  string
+		pubDate string
+	}
+	d := &templateData{}
+
+	d.content, err = getStringValue(&o, "content")
 	if err != nil {
 		return fmt.Errorf("Unable to get content from %v: %v", url, err)
 	}
-
-	title, _ := getStringValue(&o, "title")
-	if len(title) == 0 {
-		title = contentUrl
+	d.title, _ = getStringValue(&o, "title")
+	if len(d.title) == 0 {
+		d.title = contentUrl
 	}
+	d.author, _ = getStringValue(&o, "author")
+	d.pubDate, _ = getStringValue(&o, "date_published")
 
-	author, _ := getStringValue(&o, "author")
-	pubDate, _ := getStringValue(&o, "date_published")
-
-	content, imageUrls, err := f.processContent(content)
+	var imageUrls map[string]string
+	d.content, imageUrls, err = f.processContent(d.content)
 	if err != nil {
 		return fmt.Errorf("Unable to process content: %v", err)
 	}
@@ -161,32 +169,25 @@ func (f *contentFetcher) GetContent(contentUrl, destPath string) error {
 		return err
 	}
 	defer contentFile.Close()
-	template := `
+
+	tmpl, err := template.New("doc").Parse(`
 <html>
   <head>
-	<meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
-    <title>%s</title>
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
+    <title>{{.title}}</title>
   </head>
   <body>
-	<h2>%s</h2>
-	%s
-	%s
-    %s
+    <h2>{{.title}}</h2>
+    {{if .author}}<b>By {{.author}}</b>{{end}}
+    {{if .pubDate}}<em>Published {{.pubDate}}</em>{{end}}
+    {{.content}}
   </body>
-</html>
-`
-	var authorTag, dateTag string
-	if len(author) > 0 {
-		authorTag = fmt.Sprintf("<b>By %s</b>", html.EscapeString(author))
-	}
-	if len(pubDate) > 0 {
-		dateTag = fmt.Sprintf("<p><em>Published %s</em></p>", html.EscapeString(pubDate))
-	}
+</html>`)
 
-	escTitle := html.EscapeString(title)
-	if _, err := contentFile.WriteString(fmt.Sprintf(template, escTitle, escTitle, authorTag, dateTag, content)); err != nil {
+	if err = tmpl.Execute(contentFile, d); err != nil {
 		return fmt.Errorf("Failed to write content to %v: %v", destPath, err)
 	}
+
 	if f.ShouldDownloadImages {
 		if err = f.downloadImages(imageUrls, destDir); err != nil {
 			return fmt.Errorf("Unable to download images: %v", err)
