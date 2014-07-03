@@ -66,11 +66,13 @@ type contentFetcher struct {
 	BaseTempDir    string
 	DownloadImages bool
 	KeepTempFiles  bool
+	Logger         *log.Logger
 }
 
 func NewContentFetcher() *contentFetcher {
 	f := contentFetcher{}
 	f.DownloadImages = true
+	f.Logger = log.New(os.Stderr, "", log.LstdFlags)
 	return &f
 }
 
@@ -110,7 +112,7 @@ func (f *contentFetcher) downloadImages(urls map[string]string, dir string) (tot
 	for filename, url := range urls {
 		body, err := openUrl(url)
 		if err != nil {
-			log.Printf("Failed to download image %v: %v\n", url, err)
+			f.Logger.Printf("Failed to download image %v: %v\n", url, err)
 			continue
 		}
 		defer body.Close()
@@ -124,7 +126,7 @@ func (f *contentFetcher) downloadImages(urls map[string]string, dir string) (tot
 
 		numBytes, err := io.Copy(file, body)
 		if err != nil {
-			log.Printf("Unable to write image %v to %v: %v\n", url, path, err)
+			f.Logger.Printf("Unable to write image %v to %v: %v\n", url, path, err)
 		}
 		totalBytes += numBytes
 	}
@@ -206,7 +208,7 @@ func (f *contentFetcher) downloadContent(contentUrl, dir string) error {
 		if err != nil {
 			return fmt.Errorf("Unable to download images: %v", err)
 		}
-		log.Printf("Downloaded %v image(s) totalling %v byte(s)\n", len(imageUrls), totalBytes)
+		f.Logger.Printf("Downloaded %v image(s) totalling %v byte(s)\n", len(imageUrls), totalBytes)
 	}
 
 	return nil
@@ -215,7 +217,7 @@ func (f *contentFetcher) downloadContent(contentUrl, dir string) error {
 func (f *contentFetcher) buildDoc(dir string) error {
 	c := exec.Command("docker", "run", "-v", dir+":/source", "jagregory/kindlegen", IndexFile, "-o", DocFile)
 	o, err := c.CombinedOutput()
-	log.Printf("kindlegen output:%s", strings.Replace("\n"+string(o), "\n", "\n  ", -1))
+	f.Logger.Printf("kindlegen output:%s", strings.Replace("\n"+string(o), "\n", "\n  ", -1))
 	if err != nil {
 		// kindlegen returns 1 for warnings and 2 for fatal errors.
 		if status, ok := err.(*exec.ExitError); !ok || status.Sys().(syscall.WaitStatus).ExitStatus() != 1 {
@@ -251,7 +253,7 @@ func (f *contentFetcher) sendMail(docPath string) error {
 			"Content-Disposition: attachment; filename=\"%s\";\r\n"+
 			"\r\n"+
 			"%s\r\n", f.Sender, f.Recipient, filepath.Base(docPath), buf.String())
-	log.Printf("Sending %v-byte message to %v\n", len(body), f.Recipient)
+	f.Logger.Printf("Sending %v-byte message to %v\n", len(body), f.Recipient)
 
 	c, err := smtp.Dial(f.MailServer)
 	if err != nil {
@@ -275,7 +277,7 @@ func (f *contentFetcher) ProcessUrl(contentUrl string) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("Processing %v in %v\n", contentUrl, tempDir)
+	f.Logger.Printf("Processing %v in %v\n", contentUrl, tempDir)
 	if err = f.downloadContent(contentUrl, tempDir); err != nil {
 		return err
 	}
@@ -284,7 +286,7 @@ func (f *contentFetcher) ProcessUrl(contentUrl string) error {
 	}
 
 	if len(f.Recipient) == 0 || len(f.Sender) == 0 {
-		log.Println("Empty recipient or sender; not sending email")
+		f.Logger.Println("Empty recipient or sender; not sending email")
 	} else if err = f.sendMail(filepath.Join(tempDir, DocFile)); err != nil {
 		return fmt.Errorf("Unable to send mail: %v\n", err)
 	}
