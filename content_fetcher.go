@@ -135,26 +135,26 @@ func (f *contentFetcher) GetContent(contentUrl, destPath string) error {
 	}
 
 	type templateData struct {
-		title   string
-		content string
-		author  string
-		pubDate string
+		Title   string
+		Content string
+		Author  string
+		PubDate string
 	}
 	d := &templateData{}
 
-	d.content, err = getStringValue(&o, "content")
+	d.Content, err = getStringValue(&o, "content")
 	if err != nil {
 		return fmt.Errorf("Unable to get content from %v: %v", url, err)
 	}
-	d.title, _ = getStringValue(&o, "title")
-	if len(d.title) == 0 {
-		d.title = contentUrl
+	d.Title, _ = getStringValue(&o, "title")
+	if len(d.Title) == 0 {
+		d.Title = contentUrl
 	}
-	d.author, _ = getStringValue(&o, "author")
-	d.pubDate, _ = getStringValue(&o, "date_published")
+	d.Author, _ = getStringValue(&o, "author")
+	d.PubDate, _ = getStringValue(&o, "date_published")
 
 	var imageUrls map[string]string
-	d.content, imageUrls, err = f.processContent(d.content)
+	d.Content, imageUrls, err = f.processContent(d.Content)
 	if err != nil {
 		return fmt.Errorf("Unable to process content: %v", err)
 	}
@@ -174,14 +174,14 @@ func (f *contentFetcher) GetContent(contentUrl, destPath string) error {
 <html>
   <head>
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
-    {{if .author}}<meta content="{{.author}}" name="author"/>{{end}}
-    <title>{{.title}}</title>
+    {{if .Author}}<meta content="{{.Author}}" name="author"/>{{end}}
+    <title>{{.Title}}</title>
   </head>
   <body>
-    <h2>{{.title}}</h2>
-    {{if .author}}<b>By {{.author}}</b>{{end}}
-    {{if .pubDate}}<em>Published {{.pubDate}}</em>{{end}}
-    {{.content}}
+    <h2>{{.Title}}</h2>
+    {{if .Author}}<b>By {{.Author}}</b>{{end}}
+    {{if .PubDate}}<em>Published {{.PubDate}}</em>{{end}}
+    {{.Content}}
   </body>
 </html>`)
 
