@@ -37,6 +37,20 @@ div.list-entry div.time {
   color: #808070;
 }
 
+span.bookmarklet {
+  font-size: 12px;
+  border: 1px solid #aaa;
+  border-radius: 6px;
+  padding: 4px;
+  background-color: #ddd;
+  margin-right: 8px;
+  font-family: "Arial", sans;
+}
+span.bookmarklet a {
+  text-decoration: none;
+  color: #333;
+}
+
 @media only screen and (max-device-width: 480px) {
   body { max-width: 100%; }
 }
