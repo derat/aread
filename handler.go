@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -87,8 +88,7 @@ func (h Handler) handleList(rw http.ResponseWriter, r *http.Request) {
     </div>
     {{ end }}
   </body>
-</html>
-`)
+</html>`)
 	if err != nil {
 		h.logger.Printf("Unable to parse template: %v\n", err)
 		return // FIXME
@@ -97,6 +97,70 @@ func (h Handler) handleList(rw http.ResponseWriter, r *http.Request) {
 		h.logger.Printf("Unable to execute template: %v\n", err)
 		return // FIXME
 	}
+}
+
+func (h Handler) handleAuth(rw http.ResponseWriter, r *http.Request) {
+	if len(r.FormValue("p")) > 0 {
+		if len(h.Password) > 0 && r.FormValue("p") == h.Password {
+			id := getSha1String(h.Password + "|" + strconv.FormatInt(time.Now().UnixNano(), 10))
+			if err := h.db.AddSession(id); err != nil {
+				h.logger.Printf("Unable to insert session: %v\n", err)
+				return // FIXME
+			}
+			h.logger.Printf("Successful authentication attempt from %v\n", r.RemoteAddr)
+			rw.Header()["Set-Cookie"] = []string{sessionCookie + "=" + id}
+			http.Redirect(rw, r, r.FormValue("r"), http.StatusFound)
+			return
+		} else {
+			h.logger.Printf("Bad authentication attempt from %v\n", r.RemoteAddr)
+		}
+	}
+
+	type templateData struct {
+		Redirect       string
+		StylesheetPath string
+	}
+	d := templateData{
+		Redirect:       r.FormValue("r"),
+		StylesheetPath: path.Join(h.baseUrlPath, staticUrlPath, cssFile),
+	}
+	tmpl, err := template.New("auth").Parse(`
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
+    <title>Auth</title>
+    <link href="{{.StylesheetPath}}" rel="stylesheet" type="text/css"/>
+  </head>
+  <body>
+    <form method="post">
+      Password: <input type="password" name="p"><br>
+	  <input type="hidden" name="r" value={{.Redirect}}>
+      <input type="submit" value="Submit">
+    </form>
+  </body>
+</html>`)
+	if err != nil {
+		h.logger.Printf("Unable to parse template: %v\n", err)
+		return // FIXME
+	}
+	if err = tmpl.Execute(rw, d); err != nil {
+		h.logger.Printf("Unable to execute template: %v\n", err)
+		return // FIXME
+	}
+}
+
+func (h Handler) isAuthenticated(r *http.Request) bool {
+	c, err := r.Cookie(sessionCookie)
+	if err != nil {
+		return false
+	}
+	isAuth, err := h.db.IsValidSession(c.Value)
+	if err != nil {
+		h.logger.Println(err)
+		return false
+	}
+	return isAuth
 }
 
 func (h Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
@@ -109,19 +173,27 @@ func (h Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		reqPath = reqPath[1:]
 	}
 
+	if strings.HasPrefix(reqPath, staticUrlPath+"/") {
+		h.staticHandler.ServeHTTP(rw, r)
+		return
+	}
+	if reqPath == authUrlPath {
+		h.handleAuth(rw, r)
+		return
+	}
+
+	if !h.isAuthenticated(r) {
+		h.logger.Printf("Unauthenticated request from %v\n", r.RemoteAddr)
+		http.Redirect(rw, r, path.Join(h.baseUrlPath, authUrlPath+"?r="+r.URL.Path), http.StatusFound)
+		return
+	}
+
 	if len(reqPath) == 0 {
-		if len(h.Password) > 0 && r.FormValue("p") != h.Password {
-			h.logger.Printf("Got request with invalid password from %v\n", r.RemoteAddr)
-			rw.Write([]byte("Nope."))
-			return
-		}
 		if len(r.FormValue("u")) > 0 {
 			h.handleAdd(rw, r)
 		} else {
 			h.handleList(rw, r)
 		}
-	} else if strings.HasPrefix(reqPath, staticUrlPath+"/") {
-		h.staticHandler.ServeHTTP(rw, r)
 	} else if strings.HasPrefix(reqPath, pagesUrlPath+"/") {
 		h.pageHandler.ServeHTTP(rw, r)
 	} else {

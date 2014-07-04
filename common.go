@@ -1,10 +1,15 @@
 package main
 
 import (
+	"crypto/sha1"
+	"fmt"
+	"io"
 	"net/url"
 )
 
 const (
+	sessionCookie = "session"
+	authUrlPath   = "auth"
 	staticUrlPath = "static"
 	pagesUrlPath  = "pages"
 	cssFile       = "base.css"
@@ -23,4 +28,10 @@ func getHost(urlStr string) string {
 		return ""
 	}
 	return u.Host
+}
+
+func getSha1String(input string) string {
+	h := sha1.New()
+	io.WriteString(h, input)
+	return fmt.Sprintf("%x", h.Sum(nil))
 }

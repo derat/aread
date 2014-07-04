@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"code.google.com/p/go.net/html"
-	"crypto/sha1"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -29,12 +28,6 @@ const (
 	indexFile             = "index.html"
 	docFile               = "out.mobi"
 )
-
-func getSha1String(input string) string {
-	h := sha1.New()
-	io.WriteString(h, input)
-	return fmt.Sprintf("%x", h.Sum(nil))
-}
 
 func getStringValue(object *map[string]interface{}, name string) (string, error) {
 	data, ok := (*object)[name]
