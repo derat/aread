@@ -1,0 +1,42 @@
+body {
+  font-family: "Georgia", "Times New Roman", "Times", serif;
+  font-size: 16px;
+  line-height: 1.5;
+  max-width: 700px;
+  margin: 32px;
+  color: black;
+  background-color: #f5f5f0;
+}
+
+a {
+  color: #a05030;
+}
+a:visited {
+  color: #505030;
+}
+
+div.list-entry {
+  margin-bottom: 20px;
+}
+div.list-entry div.title {
+  font-weight: bold;
+  font-size: 20px;
+}
+div.list-entry a {
+  color: black;
+  text-decoration: none;
+}
+div.list-entry a:hover {
+  text-decoration: underline;
+}
+div.list-entry div.orig a {
+  color: #a05030;
+}
+div.list-entry div.time {
+  font-size: 12px;
+  color: #808070;
+}
+
+@media only screen and (max-device-width: 480px) {
+  body { max-width: 100%; }
+}
