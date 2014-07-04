@@ -9,6 +9,7 @@ import (
 
 const (
 	sessionCookie = "session"
+	addUrlPath    = "add"
 	authUrlPath   = "auth"
 	staticUrlPath = "static"
 	pagesUrlPath  = "pages"

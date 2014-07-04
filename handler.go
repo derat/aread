@@ -12,8 +12,9 @@ import (
 )
 
 type Handler struct {
-	Password    string
-	MaxListSize int
+	Password         string
+	BookmarkletToken string
+	MaxListSize      int
 
 	processor     *Processor
 	db            *Database
@@ -35,37 +36,62 @@ func NewHandler(p *Processor, d *Database, l *log.Logger, baseUrl *url.URL, stat
 	}
 }
 
-func (h Handler) handleAdd(rw http.ResponseWriter, r *http.Request) {
-	url := r.FormValue("u")
+func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
+	if len(h.BookmarkletToken) > 0 && r.FormValue("t") != h.BookmarkletToken {
+		h.logger.Printf("Tokenless request from %v\n", r.RemoteAddr)
+		http.Error(w, "Invalid token", http.StatusForbidden)
+		return
+	}
+
+	u := r.FormValue("u")
+	if len(u) == 0 {
+		http.Error(w, "Missing URL", http.StatusBadRequest)
+		return
+	}
+
 	sendToKindle := r.FormValue("k") == "1"
-	pi, err := h.processor.ProcessUrl(url, sendToKindle)
+	pi, err := h.processor.ProcessUrl(u, sendToKindle)
 	if len(pi.Id) > 0 {
 		h.db.AddPage(pi)
 	}
 	if err != nil {
 		h.logger.Println(err)
-		rw.Write([]byte("Got an error. :-(")) // FIXME
-	} else {
-		pagePath := path.Join(h.baseUrl.Path, pagesUrlPath, pi.Id)
-		http.Redirect(rw, r, pagePath, http.StatusFound)
+		http.Error(w, "Failed to add page", http.StatusInternalServerError)
+		return
 	}
+	pagePath := path.Join(h.baseUrl.Path, pagesUrlPath, pi.Id)
+	http.Redirect(w, r, pagePath, http.StatusFound)
 }
 
-func (h Handler) handleList(rw http.ResponseWriter, r *http.Request) {
+func (h Handler) makeBookmarklet(kindle bool) string {
+	getCurUrl := "encodeURIComponent(document.URL)"
+	addUrl := path.Join(h.baseUrl.String(), addUrlPath) + "?u=\"+" + getCurUrl + "+\"&t=" + h.BookmarkletToken
+	if kindle {
+		addUrl += "&k=1"
+	}
+	return "javascript:{window.location.href=\"" + addUrl + "\";};void(0);"
+}
+
+func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	type templateData struct {
-		Pages          []PageInfo
-		PagesPath      string
-		StylesheetPath string
+		Pages                 []PageInfo
+		PagesPath             string
+		StylesheetPath        string
+		ReadBookmarkletHref   template.HTMLAttr
+		KindleBookmarkletHref template.HTMLAttr
 	}
 	d := &templateData{
-		PagesPath:      path.Join(h.baseUrl.Path, pagesUrlPath),
-		StylesheetPath: path.Join(h.baseUrl.Path, staticUrlPath, cssFile),
+		PagesPath:             path.Join(h.baseUrl.Path, pagesUrlPath),
+		StylesheetPath:        path.Join(h.baseUrl.Path, staticUrlPath, cssFile),
+		ReadBookmarkletHref:   template.HTMLAttr("href=" + h.makeBookmarklet(false)),
+		KindleBookmarkletHref: template.HTMLAttr("href=" + h.makeBookmarklet(true)),
 	}
 
 	var err error
 	if d.Pages, err = h.db.GetPages(h.MaxListSize); err != nil {
 		h.logger.Printf("Unable to get pages: %v\n", err)
-		return // FIXME
+		http.Error(w, "Unable to get page list", http.StatusInternalServerError)
+		return
 	}
 
 	fm := template.FuncMap{
@@ -88,29 +114,36 @@ func (h Handler) handleList(rw http.ResponseWriter, r *http.Request) {
       <div class="time">Added {{time .TimeAdded}}</div>
     </div>
     {{ end }}
+    <div>
+      <span class="bookmarklet"><a {{.ReadBookmarkletHref}}>Add to list</a></span>
+      <span class="bookmarklet"><a {{.KindleBookmarkletHref}}>Send to Kindle</a></span>
+    </div>
   </body>
 </html>`)
 	if err != nil {
 		h.logger.Printf("Unable to parse template: %v\n", err)
-		return // FIXME
+		http.Error(w, "Unable to parse template", http.StatusInternalServerError)
+		return
 	}
-	if err = tmpl.Execute(rw, d); err != nil {
+	if err = tmpl.Execute(w, d); err != nil {
 		h.logger.Printf("Unable to execute template: %v\n", err)
-		return // FIXME
+		http.Error(w, "Unable to execute template", http.StatusInternalServerError)
+		return
 	}
 }
 
-func (h Handler) handleAuth(rw http.ResponseWriter, r *http.Request) {
+func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 	if len(r.FormValue("p")) > 0 {
 		if len(h.Password) > 0 && r.FormValue("p") == h.Password {
 			id := getSha1String(h.Password + "|" + strconv.FormatInt(time.Now().UnixNano(), 10))
 			if err := h.db.AddSession(id); err != nil {
 				h.logger.Printf("Unable to insert session: %v\n", err)
-				return // FIXME
+				http.Error(w, "Unable to insert session", http.StatusInternalServerError)
+				return
 			}
 			h.logger.Printf("Successful authentication attempt from %v\n", r.RemoteAddr)
-			rw.Header()["Set-Cookie"] = []string{sessionCookie + "=" + id}
-			http.Redirect(rw, r, r.FormValue("r"), http.StatusFound)
+			w.Header()["Set-Cookie"] = []string{sessionCookie + "=" + id}
+			http.Redirect(w, r, r.FormValue("r"), http.StatusFound)
 			return
 		} else {
 			h.logger.Printf("Bad authentication attempt from %v\n", r.RemoteAddr)
@@ -143,11 +176,13 @@ func (h Handler) handleAuth(rw http.ResponseWriter, r *http.Request) {
 </html>`)
 	if err != nil {
 		h.logger.Printf("Unable to parse template: %v\n", err)
-		return // FIXME
+		http.Error(w, "Unable to parse template", http.StatusInternalServerError)
+		return
 	}
-	if err = tmpl.Execute(rw, d); err != nil {
+	if err = tmpl.Execute(w, d); err != nil {
 		h.logger.Printf("Unable to execute template: %v\n", err)
-		return // FIXME
+		http.Error(w, "Unable to execute template", http.StatusInternalServerError)
+		return
 	}
 }
 
@@ -164,9 +199,10 @@ func (h Handler) isAuthenticated(r *http.Request) bool {
 	return isAuth
 }
 
-func (h Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
+func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !strings.HasPrefix(r.URL.Path, h.baseUrl.Path) {
 		h.logger.Printf("Got request with unexpected path \"%v\"", r.URL.Path)
+		http.Error(w, "Unexpected path", http.StatusInternalServerError)
 		return
 	}
 	reqPath := r.URL.Path[len(h.baseUrl.Path):]
@@ -175,29 +211,28 @@ func (h Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if strings.HasPrefix(reqPath, staticUrlPath+"/") {
-		h.staticHandler.ServeHTTP(rw, r)
+		h.staticHandler.ServeHTTP(w, r)
 		return
 	}
 	if reqPath == authUrlPath {
-		h.handleAuth(rw, r)
+		h.handleAuth(w, r)
 		return
 	}
 
+	// Everything else requires authentication.
 	if !h.isAuthenticated(r) {
 		h.logger.Printf("Unauthenticated request from %v\n", r.RemoteAddr)
-		http.Redirect(rw, r, path.Join(h.baseUrl.Path, authUrlPath+"?r="+r.URL.Path), http.StatusFound)
+		http.Redirect(w, r, path.Join(h.baseUrl.Path, authUrlPath+"?r="+r.URL.Path), http.StatusFound)
 		return
 	}
 
 	if len(reqPath) == 0 {
-		if len(r.FormValue("u")) > 0 {
-			h.handleAdd(rw, r)
-		} else {
-			h.handleList(rw, r)
-		}
+		h.handleList(w, r)
+	} else if reqPath == addUrlPath {
+		h.handleAdd(w, r)
 	} else if strings.HasPrefix(reqPath, pagesUrlPath+"/") {
-		h.pageHandler.ServeHTTP(rw, r)
+		h.pageHandler.ServeHTTP(w, r)
 	} else {
-		// FIXME: 404
+		http.Error(w, "Bogus request", http.StatusBadRequest)
 	}
 }

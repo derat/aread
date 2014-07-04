@@ -89,6 +89,7 @@ func main() {
 
 		h := NewHandler(p, d, logger, u, c.StaticDir, c.PageDir)
 		h.Password = c.Password
+		h.BookmarkletToken = c.BookmarkletToken
 		fcgi.Serve(nil, *h)
 	}
 }
