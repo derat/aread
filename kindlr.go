@@ -31,6 +31,7 @@ func (h handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 type config struct {
 	ApiToken       string
+	Database       string
 	MailServer     string
 	Recipient      string
 	Sender         string
@@ -62,6 +63,12 @@ func main() {
 	flag.Parse()
 
 	c := readConfig(configPath)
+
+	d, err := NewDatabase(c.Database)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	p := NewProcessor()
 	p.ApiToken = c.ApiToken
 	p.MailServer = c.MailServer
