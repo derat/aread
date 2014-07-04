@@ -133,32 +133,40 @@ func (p *Processor) downloadImages(urls map[string]string, dir string) (totalByt
 }
 
 func (p *Processor) downloadContent(contentUrl, dir string) error {
-	url := fmt.Sprintf("https://www.readability.com/api/content/v1/parser?url=%s&token=%s", url.QueryEscape(contentUrl), p.ApiToken)
-	body, err := openUrl(url)
+	apiUrl := fmt.Sprintf("https://www.readability.com/api/content/v1/parser?url=%s&token=%s", url.QueryEscape(contentUrl), p.ApiToken)
+	body, err := openUrl(apiUrl)
 	if err != nil {
 		return err
 	}
 	defer body.Close()
 	var b []byte
 	if b, err = ioutil.ReadAll(body); err != nil {
-		return fmt.Errorf("Unable to read %s: %v", url, err)
+		return fmt.Errorf("Unable to read %s: %v", apiUrl, err)
 	}
 	o := make(map[string]interface{})
 	if err = json.Unmarshal(b, &o); err != nil {
-		return fmt.Errorf("Unable to unmarshal JSON from %v: %v", url, err)
+		return fmt.Errorf("Unable to unmarshal JSON from %v: %v", apiUrl, err)
 	}
 
 	type templateData struct {
 		Content template.HTML
+		Url     string
+		Host    string
 		Title   string
 		Author  string
 		PubDate string
 	}
-	d := &templateData{}
+	d := &templateData{Url: contentUrl}
+
+	u, err := url.Parse(contentUrl)
+	if err != nil {
+		return fmt.Errorf("Unable to parse URL %v: %v", contentUrl, err)
+	}
+	d.Host = u.Host
 
 	content, err := getStringValue(&o, "content")
 	if err != nil {
-		return fmt.Errorf("Unable to get content from %v: %v", url, err)
+		return fmt.Errorf("Unable to get content from %v: %v", apiUrl, err)
 	}
 
 	d.Title, _ = getStringValue(&o, "title")
@@ -189,8 +197,9 @@ func (p *Processor) downloadContent(contentUrl, dir string) error {
     <title>{{.Title}}</title>
   </head>
   <body>
-    <h2>{{.Title}}</h2>
+    <h3>{{.Title}}</h3>
     <p>
+      <a href="{{.Url}}">{{.Host}}</a><br>
       {{if .Author}}<b>By {{.Author}}</b><br>{{end}}
       {{if .PubDate}}<em>Published {{.PubDate}}</em>{{end}}
     </p>
