@@ -13,16 +13,16 @@ import (
 )
 
 type handler struct {
-	fetcher  *contentFetcher
-	password string
+	processor *Processor
+	password  string
 }
 
 func (h handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	if len(h.password) > 0 && r.FormValue("p") != h.password {
-		h.fetcher.Logger.Printf("Got request with invalid password from %v\n", r.RemoteAddr)
+		h.processor.Logger.Printf("Got request with invalid password from %v\n", r.RemoteAddr)
 		rw.Write([]byte("Nope."))
-	} else if err := h.fetcher.ProcessUrl(r.FormValue("u")); err != nil {
-		h.fetcher.Logger.Println(err)
+	} else if err := h.processor.ProcessUrl(r.FormValue("u")); err != nil {
+		h.processor.Logger.Println(err)
 		rw.Write([]byte("Got an error. :-("))
 	} else {
 		rw.Write([]byte("Done!"))
@@ -62,25 +62,25 @@ func main() {
 	flag.Parse()
 
 	c := readConfig(configPath)
-	f := NewContentFetcher()
-	f.ApiToken = c.ApiToken
-	f.MailServer = c.MailServer
-	f.Recipient = c.Recipient
-	f.Sender = c.Sender
-	f.DownloadImages = c.DownloadImages
+	p := NewProcessor()
+	p.ApiToken = c.ApiToken
+	p.MailServer = c.MailServer
+	p.Recipient = c.Recipient
+	p.Sender = c.Sender
+	p.DownloadImages = c.DownloadImages
 
 	if len(flag.Args()) > 0 {
 		for i := range flag.Args() {
-			if err := f.ProcessUrl(flag.Args()[i]); err != nil {
+			if err := p.ProcessUrl(flag.Args()[i]); err != nil {
 				log.Println(err)
 			}
 		}
 	} else {
 		var err error
-		if f.Logger, err = syslog.NewLogger(syslog.LOG_INFO|syslog.LOG_DAEMON, log.LstdFlags); err != nil {
+		if p.Logger, err = syslog.NewLogger(syslog.LOG_INFO|syslog.LOG_DAEMON, log.LstdFlags); err != nil {
 			log.Fatalf("Unable to connect to syslog: %v\n", err)
 		}
-		h := handler{fetcher: f, password: c.Password}
+		h := handler{processor: p, password: c.Password}
 		fcgi.Serve(nil, h)
 	}
 }

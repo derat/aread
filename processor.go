@@ -22,10 +22,10 @@ import (
 )
 
 const (
-	DefaultImageExtension = ".jpg"
-	MaxLineLength         = 80
-	IndexFile             = "index.html"
-	DocFile               = "out.mobi"
+	defaultImageExtension = ".jpg"
+	maxLineLength         = 80
+	indexFile             = "index.html"
+	docFile               = "out.mobi"
 )
 
 func getSha1String(input string) string {
@@ -58,7 +58,7 @@ func openUrl(url string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-type contentFetcher struct {
+type Processor struct {
 	ApiToken       string
 	MailServer     string
 	Sender         string
@@ -68,14 +68,14 @@ type contentFetcher struct {
 	Logger         *log.Logger
 }
 
-func NewContentFetcher() *contentFetcher {
-	f := contentFetcher{}
-	f.DownloadImages = true
-	f.Logger = log.New(os.Stderr, "", log.LstdFlags)
-	return &f
+func NewProcessor() *Processor {
+	p := Processor{}
+	p.DownloadImages = true
+	p.Logger = log.New(os.Stderr, "", log.LstdFlags)
+	return &p
 }
 
-func (f *contentFetcher) rewriteContent(input string) (content string, imageUrls map[string]string, err error) {
+func (p *Processor) rewriteContent(input string) (content string, imageUrls map[string]string, err error) {
 	imageUrls = make(map[string]string)
 	z := html.NewTokenizer(strings.NewReader(input))
 	for {
@@ -86,13 +86,13 @@ func (f *contentFetcher) rewriteContent(input string) (content string, imageUrls
 			return "", nil, z.Err()
 		}
 		t := z.Token()
-		if f.DownloadImages && t.Type == html.StartTagToken && t.Data == "img" {
+		if p.DownloadImages && t.Type == html.StartTagToken && t.Data == "img" {
 			for i := range t.Attr {
 				if t.Attr[i].Key == "src" {
 					url := t.Attr[i].Val
 					ext := filepath.Ext(url)
 					if len(ext) == 0 {
-						ext = DefaultImageExtension
+						ext = defaultImageExtension
 					}
 					name := getSha1String(url) + ext
 					imageUrls[name] = url
@@ -107,11 +107,11 @@ func (f *contentFetcher) rewriteContent(input string) (content string, imageUrls
 	}
 }
 
-func (f *contentFetcher) downloadImages(urls map[string]string, dir string) (totalBytes int64, err error) {
+func (p *Processor) downloadImages(urls map[string]string, dir string) (totalBytes int64, err error) {
 	for filename, url := range urls {
 		body, err := openUrl(url)
 		if err != nil {
-			f.Logger.Printf("Failed to download image %v: %v\n", url, err)
+			p.Logger.Printf("Failed to download image %v: %v\n", url, err)
 			continue
 		}
 		defer body.Close()
@@ -125,15 +125,15 @@ func (f *contentFetcher) downloadImages(urls map[string]string, dir string) (tot
 
 		numBytes, err := io.Copy(file, body)
 		if err != nil {
-			f.Logger.Printf("Unable to write image %v to %v: %v\n", url, path, err)
+			p.Logger.Printf("Unable to write image %v to %v: %v\n", url, path, err)
 		}
 		totalBytes += numBytes
 	}
 	return totalBytes, nil
 }
 
-func (f *contentFetcher) downloadContent(contentUrl, dir string) error {
-	url := fmt.Sprintf("https://www.readability.com/api/content/v1/parser?url=%s&token=%s", url.QueryEscape(contentUrl), f.ApiToken)
+func (p *Processor) downloadContent(contentUrl, dir string) error {
+	url := fmt.Sprintf("https://www.readability.com/api/content/v1/parser?url=%s&token=%s", url.QueryEscape(contentUrl), p.ApiToken)
 	body, err := openUrl(url)
 	if err != nil {
 		return err
@@ -169,7 +169,7 @@ func (f *contentFetcher) downloadContent(contentUrl, dir string) error {
 	d.PubDate, _ = getStringValue(&o, "date_published")
 
 	var imageUrls map[string]string
-	content, imageUrls, err = f.rewriteContent(content)
+	content, imageUrls, err = p.rewriteContent(content)
 	if err != nil {
 		return fmt.Errorf("Unable to process content: %v", err)
 	}
@@ -202,21 +202,21 @@ func (f *contentFetcher) downloadContent(contentUrl, dir string) error {
 		return fmt.Errorf("Failed to execute template: %v", err)
 	}
 
-	if f.DownloadImages && len(imageUrls) > 0 {
-		totalBytes, err := f.downloadImages(imageUrls, dir)
+	if p.DownloadImages && len(imageUrls) > 0 {
+		totalBytes, err := p.downloadImages(imageUrls, dir)
 		if err != nil {
 			return fmt.Errorf("Unable to download images: %v", err)
 		}
-		f.Logger.Printf("Downloaded %v image(s) totalling %v byte(s)\n", len(imageUrls), totalBytes)
+		p.Logger.Printf("Downloaded %v image(s) totalling %v byte(s)\n", len(imageUrls), totalBytes)
 	}
 
 	return nil
 }
 
-func (f *contentFetcher) buildDoc(dir string) error {
-	c := exec.Command("docker", "run", "-v", dir+":/source", "jagregory/kindlegen", IndexFile, "-o", DocFile)
+func (p *Processor) buildDoc(dir string) error {
+	c := exec.Command("docker", "run", "-v", dir+":/source", "jagregory/kindlegen", indexFile, "-o", docFile)
 	o, err := c.CombinedOutput()
-	f.Logger.Printf("kindlegen output:%s", strings.Replace("\n"+string(o), "\n", "\n  ", -1))
+	p.Logger.Printf("kindlegen output:%s", strings.Replace("\n"+string(o), "\n", "\n  ", -1))
 	if err != nil {
 		// kindlegen returns 1 for warnings and 2 for fatal errors.
 		if status, ok := err.(*exec.ExitError); !ok || status.Sys().(syscall.WaitStatus).ExitStatus() != 1 {
@@ -227,7 +227,7 @@ func (f *contentFetcher) buildDoc(dir string) error {
 }
 
 // Based on https://gist.github.com/rmulley/6603544.
-func (f *contentFetcher) sendMail(docPath string) error {
+func (p *Processor) sendMail(docPath string) error {
 	data, err := ioutil.ReadFile(docPath)
 	if err != nil {
 		return err
@@ -235,11 +235,11 @@ func (f *contentFetcher) sendMail(docPath string) error {
 	encoded := base64.StdEncoding.EncodeToString(data)
 
 	var buf bytes.Buffer
-	numLines := len(encoded) / MaxLineLength
+	numLines := len(encoded) / maxLineLength
 	for i := 0; i < numLines; i++ {
-		buf.WriteString(encoded[i*MaxLineLength:(i+1)*MaxLineLength] + "\n")
+		buf.WriteString(encoded[i*maxLineLength:(i+1)*maxLineLength] + "\n")
 	}
-	buf.WriteString(encoded[numLines*MaxLineLength:])
+	buf.WriteString(encoded[numLines*maxLineLength:])
 
 	// You so crazy, gofmt.
 	body := fmt.Sprintf(
@@ -251,15 +251,15 @@ func (f *contentFetcher) sendMail(docPath string) error {
 			"Content-Transfer-Encoding:base64\r\n"+
 			"Content-Disposition: attachment; filename=\"%s\";\r\n"+
 			"\r\n"+
-			"%s\r\n", f.Sender, f.Recipient, filepath.Base(docPath), buf.String())
-	f.Logger.Printf("Sending %v-byte message to %v\n", len(body), f.Recipient)
+			"%s\r\n", p.Sender, p.Recipient, filepath.Base(docPath), buf.String())
+	p.Logger.Printf("Sending %v-byte message to %v\n", len(body), p.Recipient)
 
-	c, err := smtp.Dial(f.MailServer)
+	c, err := smtp.Dial(p.MailServer)
 	if err != nil {
 		return err
 	}
-	c.Mail(f.Sender)
-	c.Rcpt(f.Recipient)
+	c.Mail(p.Sender)
+	c.Rcpt(p.Recipient)
 	w, err := c.Data()
 	if err != nil {
 		return err
@@ -271,22 +271,22 @@ func (f *contentFetcher) sendMail(docPath string) error {
 	return nil
 }
 
-func (f *contentFetcher) ProcessUrl(contentUrl string) error {
-	tempDir, err := ioutil.TempDir(f.BaseTempDir, "kindlr.")
+func (p *Processor) ProcessUrl(contentUrl string) error {
+	tempDir, err := ioutil.TempDir(p.BaseTempDir, "kindlr.")
 	if err != nil {
 		return err
 	}
-	f.Logger.Printf("Processing %v in %v\n", contentUrl, tempDir)
-	if err = f.downloadContent(contentUrl, tempDir); err != nil {
+	p.Logger.Printf("Processing %v in %v\n", contentUrl, tempDir)
+	if err = p.downloadContent(contentUrl, tempDir); err != nil {
 		return err
 	}
-	if err = f.buildDoc(tempDir); err != nil {
+	if err = p.buildDoc(tempDir); err != nil {
 		return err
 	}
 
-	if len(f.Recipient) == 0 || len(f.Sender) == 0 {
-		f.Logger.Println("Empty recipient or sender; not sending email")
-	} else if err = f.sendMail(filepath.Join(tempDir, DocFile)); err != nil {
+	if len(p.Recipient) == 0 || len(p.Sender) == 0 {
+		p.Logger.Println("Empty recipient or sender; not sending email")
+	} else if err = p.sendMail(filepath.Join(tempDir, docFile)); err != nil {
 		return fmt.Errorf("Unable to send mail: %v\n", err)
 	}
 
