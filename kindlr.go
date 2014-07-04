@@ -16,6 +16,7 @@ type config struct {
 	BaseUrlPath    string
 	StaticDir      string
 	PageDir        string
+	Database       string
 	MailServer     string
 	Recipient      string
 	Sender         string
@@ -47,6 +48,12 @@ func main() {
 	flag.Parse()
 
 	c := readConfig(configPath)
+
+	d, err := NewDatabase(c.Database)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	p := NewProcessor()
 	p.ApiToken = c.ApiToken
 	p.BaseOutputDir = c.PageDir
