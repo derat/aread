@@ -281,7 +281,7 @@ func (p *Processor) sendMail(docPath string) error {
 	return nil
 }
 
-func (p *Processor) ProcessUrl(contentUrl string) (outDir string, err error) {
+func (p *Processor) ProcessUrl(contentUrl string, sendToKindle bool) (outDir string, err error) {
 	outDir = filepath.Join(p.BaseOutputDir, getSha1String(contentUrl))
 	p.Logger.Printf("Processing %v in %v\n", contentUrl, outDir)
 
@@ -298,22 +298,24 @@ func (p *Processor) ProcessUrl(contentUrl string) (outDir string, err error) {
 	if err = p.downloadContent(contentUrl, outDir); err != nil {
 		return "", err
 	}
-	if err = p.buildDoc(outDir); err != nil {
-		return outDir, err
+
+	if sendToKindle {
+		if err = p.buildDoc(outDir); err != nil {
+			return outDir, err
+		}
+		// Leave the .mobi file lying around if we're not sending email.
+		if len(p.Recipient) == 0 || len(p.Sender) == 0 {
+			p.Logger.Println("Empty recipient or sender; not sending email")
+			return outDir, nil
+		}
+		docPath := filepath.Join(outDir, docFile)
+		if err = p.sendMail(docPath); err != nil {
+			return outDir, fmt.Errorf("Unable to send mail: %v\n", err)
+		}
+		if err = os.Remove(docPath); err != nil {
+			return outDir, err
+		}
 	}
 
-	// Leave the .mobi file lying around if we're not sending email.
-	if len(p.Recipient) == 0 || len(p.Sender) == 0 {
-		p.Logger.Println("Empty recipient or sender; not sending email")
-		return outDir, nil
-	}
-
-	docPath := filepath.Join(outDir, docFile)
-	if err = p.sendMail(docPath); err != nil {
-		return outDir, fmt.Errorf("Unable to send mail: %v\n", err)
-	}
-	if err = os.Remove(docPath); err != nil {
-		return outDir, err
-	}
 	return outDir, nil
 }

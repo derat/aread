@@ -44,7 +44,9 @@ func (h handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		if !h.checkPassword(rw, r) {
 			return
 		}
-		_, err := h.processor.ProcessUrl(r.FormValue("u"))
+		url := r.FormValue("u")
+		sendToKindle := r.FormValue("k") == "1"
+		_, err := h.processor.ProcessUrl(url, sendToKindle)
 		if err != nil {
 			h.logger.Println(err)
 			rw.Write([]byte("Got an error. :-("))
@@ -107,7 +109,7 @@ func main() {
 	if len(flag.Args()) > 0 {
 		for i := range flag.Args() {
 			url := flag.Args()[i]
-			outputDir, err := p.ProcessUrl(url)
+			outputDir, err := p.ProcessUrl(url, false)
 			if err != nil {
 				log.Println(err)
 			} else {
