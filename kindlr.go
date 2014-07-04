@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -8,6 +9,7 @@ import (
 	"net/http"
 	"net/http/fcgi"
 	"os"
+	"path/filepath"
 )
 
 type handler struct {
@@ -27,23 +29,45 @@ func (h handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func main() {
-	f := NewContentFetcher()
-	var password string
+type config struct {
+	ApiToken       string
+	MailServer     string
+	Recipient      string
+	Sender         string
+	Password       string
+	DownloadImages bool
+}
 
+func readConfig(configPath string) config {
+	c := config{DownloadImages: true}
+	f, err := os.Open(configPath)
+	if err != nil {
+		log.Fatalf("Unable to open config file %v: %v\n", configPath, err)
+	}
+	defer f.Close()
+	d := json.NewDecoder(f)
+	if err = d.Decode(&c); err != nil {
+		log.Fatalf("Unable to read JSON from %v: %v\n", configPath, err)
+	}
+	return c
+}
+
+func main() {
+	var configPath string
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [option]... <url>\n\nOptions:\n", os.Args[0])
 		flag.PrintDefaults()
 	}
-	flag.StringVar(&f.BaseTempDir, "temp-dir", "/tmp", "Base temp directory")
-	flag.BoolVar(&f.DownloadImages, "download-images", true, "Download and write local copies of images")
-	flag.BoolVar(&f.KeepTempFiles, "keep-temp-files", false, "Keep temporary files")
-	flag.StringVar(&f.MailServer, "mail-server", "localhost:25", "SMTP server host:port")
-	flag.StringVar(&password, "password", "", "Password required for web requests")
-	flag.StringVar(&f.Recipient, "recipient", "", "Recipient email address")
-	flag.StringVar(&f.Sender, "sender", "", "Sender email address")
-	flag.StringVar(&f.ApiToken, "token", "", "Readability.com Parser API token")
+	flag.StringVar(&configPath, "config", filepath.Join(os.Getenv("HOME"), ".kindlr"), "Path to JSON config file")
 	flag.Parse()
+
+	c := readConfig(configPath)
+	f := NewContentFetcher()
+	f.ApiToken = c.ApiToken
+	f.MailServer = c.MailServer
+	f.Recipient = c.Recipient
+	f.Sender = c.Sender
+	f.DownloadImages = c.DownloadImages
 
 	if len(flag.Args()) > 0 {
 		for i := range flag.Args() {
@@ -56,7 +80,7 @@ func main() {
 		if f.Logger, err = syslog.NewLogger(syslog.LOG_INFO|syslog.LOG_DAEMON, log.LstdFlags); err != nil {
 			log.Fatalf("Unable to connect to syslog: %v\n", err)
 		}
-		h := handler{fetcher: f, password: password}
+		h := handler{fetcher: f, password: c.Password}
 		fcgi.Serve(nil, h)
 	}
 }

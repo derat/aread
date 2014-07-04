@@ -65,7 +65,6 @@ type contentFetcher struct {
 	Recipient      string
 	BaseTempDir    string
 	DownloadImages bool
-	KeepTempFiles  bool
 	Logger         *log.Logger
 }
 
@@ -291,10 +290,8 @@ func (f *contentFetcher) ProcessUrl(contentUrl string) error {
 		return fmt.Errorf("Unable to send mail: %v\n", err)
 	}
 
-	if !f.KeepTempFiles {
-		if err = os.RemoveAll(tempDir); err != nil {
-			return err
-		}
+	if err = os.RemoveAll(tempDir); err != nil {
+		return err
 	}
 	return nil
 }
