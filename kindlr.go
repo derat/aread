@@ -13,29 +13,58 @@ import (
 )
 
 type handler struct {
-	processor *Processor
-	password  string
+	Password string
+
+	processor     *Processor
+	logger        *log.Logger
+	basePath      string
+	staticHandler http.Handler
+}
+
+func newHandler(p *Processor, l *log.Logger, basePath, staticDir string) *handler {
+	return &handler{
+		processor:     p,
+		logger:        l,
+		basePath:      basePath,
+		staticHandler: http.StripPrefix(basePath, http.FileServer(http.Dir(staticDir))),
+	}
+}
+
+func (h handler) checkPassword(rw http.ResponseWriter, r *http.Request) bool {
+	if len(h.Password) > 0 && r.FormValue("p") != h.Password {
+		h.logger.Printf("Got request with invalid password from %v\n", r.RemoteAddr)
+		rw.Write([]byte("Nope."))
+		return false
+	}
+	return true
 }
 
 func (h handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
-	if len(h.password) > 0 && r.FormValue("p") != h.password {
-		h.processor.Logger.Printf("Got request with invalid password from %v\n", r.RemoteAddr)
-		rw.Write([]byte("Nope."))
-		return
-	}
-
-	_, err := h.processor.ProcessUrl(r.FormValue("u"))
-	if err != nil {
-		h.processor.Logger.Println(err)
-		rw.Write([]byte("Got an error. :-("))
+	if len(r.FormValue("u")) > 0 {
+		if !h.checkPassword(rw, r) {
+			return
+		}
+		_, err := h.processor.ProcessUrl(r.FormValue("u"))
+		if err != nil {
+			h.logger.Println(err)
+			rw.Write([]byte("Got an error. :-("))
+		} else {
+			rw.Write([]byte("Done!"))
+		}
+	} else if r.URL.Path == h.basePath || r.URL.Path == h.basePath+"/" {
+		if !h.checkPassword(rw, r) {
+			return
+		}
+		// FIXME: serve doc list
 	} else {
-		rw.Write([]byte("Done!"))
+		h.staticHandler.ServeHTTP(rw, r)
 	}
 }
 
 type config struct {
 	ApiToken       string
 	OutputDir      string
+	BaseHttpPath   string
 	MailServer     string
 	Recipient      string
 	Sender         string
@@ -86,11 +115,13 @@ func main() {
 			}
 		}
 	} else {
-		var err error
-		if p.Logger, err = syslog.NewLogger(syslog.LOG_INFO|syslog.LOG_DAEMON, log.LstdFlags); err != nil {
+		logger, err := syslog.NewLogger(syslog.LOG_INFO|syslog.LOG_DAEMON, log.LstdFlags)
+		if err != nil {
 			log.Fatalf("Unable to connect to syslog: %v\n", err)
 		}
-		h := handler{processor: p, password: c.Password}
-		fcgi.Serve(nil, h)
+		p.Logger = logger
+		h := newHandler(p, logger, c.BaseHttpPath, c.OutputDir)
+		h.Password = c.Password
+		fcgi.Serve(nil, *h)
 	}
 }
