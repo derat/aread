@@ -59,7 +59,7 @@ type Processor struct {
 	Sender         string
 	Recipient      string
 	BaseOutputDir  string
-	BaseUrlPath    string
+	BaseUrl        *url.URL
 	DownloadImages bool
 	Logger         *log.Logger
 }
@@ -158,8 +158,8 @@ func (p *Processor) downloadContent(contentUrl, dir string) (title string, err e
 	d := &templateData{
 		Url:            contentUrl,
 		Host:           getHost(contentUrl),
-		StylesheetPath: path.Join(p.BaseUrlPath, staticUrlPath, cssFile),
-		ListPath:       p.BaseUrlPath,
+		StylesheetPath: path.Join(p.BaseUrl.Path, staticUrlPath, cssFile),
+		ListPath:       p.BaseUrl.Path,
 	}
 
 	content, err := getStringValue(&o, "content")

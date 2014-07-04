@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"path"
 	"strconv"
 	"strings"
@@ -17,20 +18,20 @@ type Handler struct {
 	processor     *Processor
 	db            *Database
 	logger        *log.Logger
-	baseUrlPath   string
+	baseUrl       *url.URL
 	staticHandler http.Handler
 	pageHandler   http.Handler
 }
 
-func NewHandler(p *Processor, d *Database, l *log.Logger, baseUrlPath, staticDir, pageDir string) *Handler {
+func NewHandler(p *Processor, d *Database, l *log.Logger, baseUrl *url.URL, staticDir, pageDir string) *Handler {
 	return &Handler{
 		MaxListSize:   50,
 		processor:     p,
 		db:            d,
 		logger:        l,
-		baseUrlPath:   baseUrlPath,
-		staticHandler: http.StripPrefix(baseUrlPath+"/"+staticUrlPath, http.FileServer(http.Dir(staticDir))),
-		pageHandler:   http.StripPrefix(baseUrlPath+"/"+pagesUrlPath, http.FileServer(http.Dir(pageDir))),
+		baseUrl:       baseUrl,
+		staticHandler: http.StripPrefix(baseUrl.Path+"/"+staticUrlPath, http.FileServer(http.Dir(staticDir))),
+		pageHandler:   http.StripPrefix(baseUrl.Path+"/"+pagesUrlPath, http.FileServer(http.Dir(pageDir))),
 	}
 }
 
@@ -45,7 +46,7 @@ func (h Handler) handleAdd(rw http.ResponseWriter, r *http.Request) {
 		h.logger.Println(err)
 		rw.Write([]byte("Got an error. :-(")) // FIXME
 	} else {
-		pagePath := path.Join(h.baseUrlPath, pagesUrlPath, pi.Id)
+		pagePath := path.Join(h.baseUrl.Path, pagesUrlPath, pi.Id)
 		http.Redirect(rw, r, pagePath, http.StatusFound)
 	}
 }
@@ -57,8 +58,8 @@ func (h Handler) handleList(rw http.ResponseWriter, r *http.Request) {
 		StylesheetPath string
 	}
 	d := &templateData{
-		PagesPath:      path.Join(h.baseUrlPath, pagesUrlPath),
-		StylesheetPath: path.Join(h.baseUrlPath, staticUrlPath, cssFile),
+		PagesPath:      path.Join(h.baseUrl.Path, pagesUrlPath),
+		StylesheetPath: path.Join(h.baseUrl.Path, staticUrlPath, cssFile),
 	}
 
 	var err error
@@ -122,7 +123,7 @@ func (h Handler) handleAuth(rw http.ResponseWriter, r *http.Request) {
 	}
 	d := templateData{
 		Redirect:       r.FormValue("r"),
-		StylesheetPath: path.Join(h.baseUrlPath, staticUrlPath, cssFile),
+		StylesheetPath: path.Join(h.baseUrl.Path, staticUrlPath, cssFile),
 	}
 	tmpl, err := template.New("auth").Parse(`
 <!DOCTYPE html>
@@ -164,11 +165,11 @@ func (h Handler) isAuthenticated(r *http.Request) bool {
 }
 
 func (h Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
-	if !strings.HasPrefix(r.URL.Path, h.baseUrlPath) {
+	if !strings.HasPrefix(r.URL.Path, h.baseUrl.Path) {
 		h.logger.Printf("Got request with unexpected path \"%v\"", r.URL.Path)
 		return
 	}
-	reqPath := r.URL.Path[len(h.baseUrlPath):]
+	reqPath := r.URL.Path[len(h.baseUrl.Path):]
 	if strings.HasPrefix(reqPath, "/") {
 		reqPath = reqPath[1:]
 	}
@@ -184,7 +185,7 @@ func (h Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 	if !h.isAuthenticated(r) {
 		h.logger.Printf("Unauthenticated request from %v\n", r.RemoteAddr)
-		http.Redirect(rw, r, path.Join(h.baseUrlPath, authUrlPath+"?r="+r.URL.Path), http.StatusFound)
+		http.Redirect(rw, r, path.Join(h.baseUrl.Path, authUrlPath+"?r="+r.URL.Path), http.StatusFound)
 		return
 	}
 

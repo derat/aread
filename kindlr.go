@@ -7,21 +7,23 @@ import (
 	"log"
 	"log/syslog"
 	"net/http/fcgi"
+	"net/url"
 	"os"
 	"path/filepath"
 )
 
 type config struct {
-	ApiToken       string
-	BaseUrlPath    string
-	StaticDir      string
-	PageDir        string
-	Database       string
-	MailServer     string
-	Recipient      string
-	Sender         string
-	Password       string
-	DownloadImages bool
+	ApiToken         string
+	BaseUrl          string
+	StaticDir        string
+	PageDir          string
+	Database         string
+	MailServer       string
+	Recipient        string
+	Sender           string
+	Password         string
+	BookmarkletToken string
+	DownloadImages   bool
 }
 
 func readConfig(configPath string) config {
@@ -49,10 +51,15 @@ func main() {
 
 	c := readConfig(configPath)
 
+	u, err := url.Parse(c.BaseUrl)
+	if err != nil {
+		log.Fatalf("Unable to parse base URL %v: %v\n", c.BaseUrl, err)
+	}
+
 	p := NewProcessor()
 	p.ApiToken = c.ApiToken
 	p.BaseOutputDir = c.PageDir
-	p.BaseUrlPath = c.BaseUrlPath
+	p.BaseUrl = u
 	p.MailServer = c.MailServer
 	p.Recipient = c.Recipient
 	p.Sender = c.Sender
@@ -80,7 +87,7 @@ func main() {
 			log.Fatalln(err)
 		}
 
-		h := NewHandler(p, d, logger, c.BaseUrlPath, c.StaticDir, c.PageDir)
+		h := NewHandler(p, d, logger, u, c.StaticDir, c.PageDir)
 		h.Password = c.Password
 		fcgi.Serve(nil, *h)
 	}
