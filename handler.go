@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/http"
 	"path"
-	"path/filepath"
 	"strings"
 )
 
@@ -12,15 +11,17 @@ type Handler struct {
 	Password string
 
 	processor     *Processor
+	db            *Database
 	logger        *log.Logger
 	baseUrlPath   string
 	staticHandler http.Handler
 	pageHandler   http.Handler
 }
 
-func newHandler(p *Processor, l *log.Logger, baseUrlPath, staticDir, pageDir string) *Handler {
+func NewHandler(p *Processor, d *Database, l *log.Logger, baseUrlPath, staticDir, pageDir string) *Handler {
 	return &Handler{
 		processor:     p,
+		db:            d,
 		logger:        l,
 		baseUrlPath:   baseUrlPath,
 		staticHandler: http.StripPrefix(baseUrlPath+"/"+staticUrlPath, http.FileServer(http.Dir(staticDir))),
@@ -48,12 +49,16 @@ func (h Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		if len(r.FormValue("u")) > 0 {
 			url := r.FormValue("u")
 			sendToKindle := r.FormValue("k") == "1"
-			outDir, err := h.processor.ProcessUrl(url, sendToKindle)
+			pi, err := h.processor.ProcessUrl(url, sendToKindle)
+			if len(pi.Id) > 0 {
+				h.db.AddPage(pi)
+			}
+
 			if err != nil {
 				h.logger.Println(err)
 				rw.Write([]byte("Got an error. :-("))
 			} else {
-				pagePath := path.Join(h.baseUrlPath, pagesUrlPath, filepath.Base(outDir))
+				pagePath := path.Join(h.baseUrlPath, pagesUrlPath, pi.Id)
 				http.Redirect(rw, r, pagePath, http.StatusFound)
 			}
 			return

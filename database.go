@@ -7,13 +7,6 @@ import (
 	"os"
 )
 
-type PageInfo struct {
-	Id          string
-	OriginalUrl string
-	Title       string
-	TimeAdded   int64 // time_t
-}
-
 type Database struct {
 	db *sql.DB
 }
@@ -46,13 +39,13 @@ func NewDatabase(path string) (*Database, error) {
 	return d, nil
 }
 
-func (d *Database) AddPage(i PageInfo) error {
-	stmt, err := d.db.Prepare("INSERT INTO Pages (Id, OriginalUrl, Title, TimeAdded) VALUES(?, ?, ?, ?)")
+func (d *Database) AddPage(pi PageInfo) error {
+	stmt, err := d.db.Prepare("INSERT OR REPLACE INTO Pages (Id, OriginalUrl, Title, TimeAdded) VALUES(?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
-	if _, err := stmt.Exec(i.Id, i.OriginalUrl, i.Title, i.TimeAdded); err != nil {
+	if _, err := stmt.Exec(pi.Id, pi.OriginalUrl, pi.Title, pi.TimeAdded); err != nil {
 		return err
 	}
 	return nil
@@ -65,9 +58,9 @@ func (d *Database) GetPages() (pages []PageInfo, err error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		info := PageInfo{}
-		rows.Scan(&info.Id, info.OriginalUrl, info.Title, info.TimeAdded)
-		pages = append(pages, info)
+		pi := PageInfo{}
+		rows.Scan(&pi.Id, &pi.OriginalUrl, &pi.Title, &pi.TimeAdded)
+		pages = append(pages, pi)
 	}
 	return pages, nil
 }

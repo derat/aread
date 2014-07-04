@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 )
 
 const (
@@ -135,20 +136,20 @@ func (p *Processor) downloadImages(urls map[string]string, dir string) (totalByt
 	return totalBytes, nil
 }
 
-func (p *Processor) downloadContent(contentUrl, dir string) error {
+func (p *Processor) downloadContent(contentUrl, dir string) (title string, err error) {
 	apiUrl := fmt.Sprintf("https://www.readability.com/api/content/v1/parser?url=%s&token=%s", url.QueryEscape(contentUrl), p.ApiToken)
 	body, err := openUrl(apiUrl)
 	if err != nil {
-		return err
+		return title, err
 	}
 	defer body.Close()
 	var b []byte
 	if b, err = ioutil.ReadAll(body); err != nil {
-		return fmt.Errorf("Unable to read %s: %v", apiUrl, err)
+		return title, fmt.Errorf("Unable to read %s: %v", apiUrl, err)
 	}
 	o := make(map[string]interface{})
 	if err = json.Unmarshal(b, &o); err != nil {
-		return fmt.Errorf("Unable to unmarshal JSON from %v: %v", apiUrl, err)
+		return title, fmt.Errorf("Unable to unmarshal JSON from %v: %v", apiUrl, err)
 	}
 
 	type templateData struct {
@@ -167,32 +168,33 @@ func (p *Processor) downloadContent(contentUrl, dir string) error {
 
 	u, err := url.Parse(contentUrl)
 	if err != nil {
-		return fmt.Errorf("Unable to parse URL %v: %v", contentUrl, err)
+		return title, fmt.Errorf("Unable to parse URL %v: %v", contentUrl, err)
 	}
 	d.Host = u.Host
 
 	content, err := getStringValue(&o, "content")
 	if err != nil {
-		return fmt.Errorf("Unable to get content from %v: %v", apiUrl, err)
+		return title, fmt.Errorf("Unable to get content from %v: %v", apiUrl, err)
 	}
 
-	d.Title, _ = getStringValue(&o, "title")
-	if len(d.Title) == 0 {
-		d.Title = contentUrl
+	title, _ = getStringValue(&o, "title")
+	if len(title) == 0 {
+		title = contentUrl
 	}
+	d.Title = title
 	d.Author, _ = getStringValue(&o, "author")
 	d.PubDate, _ = getStringValue(&o, "date_published")
 
 	var imageUrls map[string]string
 	content, imageUrls, err = p.rewriteContent(content)
 	if err != nil {
-		return fmt.Errorf("Unable to process content: %v", err)
+		return title, fmt.Errorf("Unable to process content: %v", err)
 	}
 	d.Content = template.HTML(content)
 
 	contentFile, err := os.Create(filepath.Join(dir, "index.html"))
 	if err != nil {
-		return err
+		return title, err
 	}
 	defer contentFile.Close()
 
@@ -216,18 +218,18 @@ func (p *Processor) downloadContent(contentUrl, dir string) error {
 </html>`)
 
 	if err = tmpl.Execute(contentFile, d); err != nil {
-		return fmt.Errorf("Failed to execute template: %v", err)
+		return title, fmt.Errorf("Failed to execute template: %v", err)
 	}
 
 	if p.DownloadImages && len(imageUrls) > 0 {
 		totalBytes, err := p.downloadImages(imageUrls, dir)
 		if err != nil {
-			return fmt.Errorf("Unable to download images: %v", err)
+			return title, fmt.Errorf("Unable to download images: %v", err)
 		}
 		p.Logger.Printf("Downloaded %v image(s) totalling %v byte(s)\n", len(imageUrls), totalBytes)
 	}
 
-	return nil
+	return title, nil
 }
 
 func (p *Processor) buildDoc(dir string) error {
@@ -288,41 +290,48 @@ func (p *Processor) sendMail(docPath string) error {
 	return nil
 }
 
-func (p *Processor) ProcessUrl(contentUrl string, sendToKindle bool) (outDir string, err error) {
-	outDir = filepath.Join(p.BaseOutputDir, getSha1String(contentUrl))
+func (p *Processor) ProcessUrl(contentUrl string, sendToKindle bool) (pi PageInfo, err error) {
+	pi.OriginalUrl = contentUrl
+	pi.TimeAdded = time.Now().Unix()
+
+	id := getSha1String(contentUrl)
+	outDir := filepath.Join(p.BaseOutputDir, id)
 	p.Logger.Printf("Processing %v in %v\n", contentUrl, outDir)
 
 	if _, err = os.Stat(outDir); err == nil {
 		p.Logger.Printf("Deleting existing %v directory\n", outDir)
 		if err = os.RemoveAll(outDir); err != nil {
-			return "", err
+			return pi, err
 		}
 	}
 
 	if err = os.MkdirAll(outDir, 0755); err != nil {
-		return "", err
+		return pi, err
 	}
-	if err = p.downloadContent(contentUrl, outDir); err != nil {
-		return "", err
+	if pi.Title, err = p.downloadContent(contentUrl, outDir); err != nil {
+		return pi, err
 	}
+
+	// Okay, we got the page.
+	pi.Id = id
 
 	if sendToKindle {
 		if err = p.buildDoc(outDir); err != nil {
-			return outDir, err
+			return pi, err
 		}
 		// Leave the .mobi file lying around if we're not sending email.
 		if len(p.Recipient) == 0 || len(p.Sender) == 0 {
 			p.Logger.Println("Empty recipient or sender; not sending email")
-			return outDir, nil
+			return pi, nil
 		}
 		docPath := filepath.Join(outDir, docFile)
 		if err = p.sendMail(docPath); err != nil {
-			return outDir, fmt.Errorf("Unable to send mail: %v\n", err)
+			return pi, fmt.Errorf("Unable to send mail: %v\n", err)
 		}
 		if err = os.Remove(docPath); err != nil {
-			return outDir, err
+			return pi, err
 		}
 	}
 
-	return outDir, nil
+	return pi, nil
 }

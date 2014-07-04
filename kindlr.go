@@ -49,11 +49,6 @@ func main() {
 
 	c := readConfig(configPath)
 
-	d, err := NewDatabase(c.Database)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
 	p := NewProcessor()
 	p.ApiToken = c.ApiToken
 	p.BaseOutputDir = c.PageDir
@@ -66,11 +61,11 @@ func main() {
 	if len(flag.Args()) > 0 {
 		for i := range flag.Args() {
 			url := flag.Args()[i]
-			outputDir, err := p.ProcessUrl(url, false)
+			pi, err := p.ProcessUrl(url, false)
 			if err != nil {
 				log.Println(err)
 			} else {
-				log.Printf("%v -> %v\n", url, outputDir)
+				log.Printf("Processed %v (%v)\n", url, pi.Title)
 			}
 		}
 	} else {
@@ -79,7 +74,13 @@ func main() {
 			log.Fatalf("Unable to connect to syslog: %v\n", err)
 		}
 		p.Logger = logger
-		h := newHandler(p, logger, c.BaseUrlPath, c.StaticDir, c.PageDir)
+
+		d, err := NewDatabase(c.Database)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		h := NewHandler(p, d, logger, c.BaseUrlPath, c.StaticDir, c.PageDir)
 		h.Password = c.Password
 		fcgi.Serve(nil, *h)
 	}
