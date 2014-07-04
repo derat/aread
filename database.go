@@ -51,8 +51,8 @@ func (d *Database) AddPage(pi PageInfo) error {
 	return nil
 }
 
-func (d *Database) GetPages() (pages []PageInfo, err error) {
-	rows, err := d.db.Query("SELECT Id, OriginalUrl, Title, TimeAdded FROM Pages ORDER BY TimeAdded DESC")
+func (d *Database) GetPages(maxPages int) (pages []PageInfo, err error) {
+	rows, err := d.db.Query(fmt.Sprintf("SELECT Id, OriginalUrl, Title, TimeAdded FROM Pages ORDER BY TimeAdded DESC LIMIT %d", maxPages))
 	if err != nil {
 		return pages, err
 	}

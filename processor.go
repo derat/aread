@@ -160,17 +160,14 @@ func (p *Processor) downloadContent(contentUrl, dir string) (title string, err e
 		Author         string
 		PubDate        string
 		StylesheetPath string
+		ListPath       string
 	}
 	d := &templateData{
 		Url:            contentUrl,
-		StylesheetPath: path.Join(p.BaseUrlPath, staticUrlPath, pageCssFile),
+		Host:           getHost(contentUrl),
+		StylesheetPath: path.Join(p.BaseUrlPath, staticUrlPath, cssFile),
+		ListPath:       p.BaseUrlPath,
 	}
-
-	u, err := url.Parse(contentUrl)
-	if err != nil {
-		return title, fmt.Errorf("Unable to parse URL %v: %v", contentUrl, err)
-	}
-	d.Host = u.Host
 
 	content, err := getStringValue(&o, "content")
 	if err != nil {
@@ -199,6 +196,7 @@ func (p *Processor) downloadContent(contentUrl, dir string) (title string, err e
 	defer contentFile.Close()
 
 	tmpl, err := template.New("doc").Parse(`
+<!DOCTYPE html>
 <html>
   <head>
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
@@ -214,6 +212,7 @@ func (p *Processor) downloadContent(contentUrl, dir string) (title string, err e
       {{if .PubDate}}<em>Published {{.PubDate}}</em>{{end}}
     </p>
     {{.Content}}
+    <a href="{{.ListPath}}">Back to reading list</a>
   </body>
 </html>`)
 
