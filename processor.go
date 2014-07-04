@@ -63,16 +63,17 @@ type Processor struct {
 	MailServer     string
 	Sender         string
 	Recipient      string
-	BaseTempDir    string
+	BaseOutputDir  string
 	DownloadImages bool
 	Logger         *log.Logger
 }
 
 func NewProcessor() *Processor {
-	p := Processor{}
-	p.DownloadImages = true
-	p.Logger = log.New(os.Stderr, "", log.LstdFlags)
-	return &p
+	return &Processor{
+		BaseOutputDir:  "/tmp",
+		DownloadImages: true,
+		Logger:         log.New(os.Stderr, "", log.LstdFlags),
+	}
 }
 
 func (p *Processor) rewriteContent(input string) (content string, imageUrls map[string]string, err error) {
@@ -280,27 +281,39 @@ func (p *Processor) sendMail(docPath string) error {
 	return nil
 }
 
-func (p *Processor) ProcessUrl(contentUrl string) error {
-	tempDir, err := ioutil.TempDir(p.BaseTempDir, "kindlr.")
-	if err != nil {
-		return err
-	}
-	p.Logger.Printf("Processing %v in %v\n", contentUrl, tempDir)
-	if err = p.downloadContent(contentUrl, tempDir); err != nil {
-		return err
-	}
-	if err = p.buildDoc(tempDir); err != nil {
-		return err
+func (p *Processor) ProcessUrl(contentUrl string) (outDir string, err error) {
+	outDir = filepath.Join(p.BaseOutputDir, getSha1String(contentUrl))
+	p.Logger.Printf("Processing %v in %v\n", contentUrl, outDir)
+
+	if _, err = os.Stat(outDir); err == nil {
+		p.Logger.Printf("Deleting existing %v directory\n", outDir)
+		if err = os.RemoveAll(outDir); err != nil {
+			return "", err
+		}
 	}
 
+	if err = os.MkdirAll(outDir, 0755); err != nil {
+		return "", err
+	}
+	if err = p.downloadContent(contentUrl, outDir); err != nil {
+		return "", err
+	}
+	if err = p.buildDoc(outDir); err != nil {
+		return outDir, err
+	}
+
+	// Leave the .mobi file lying around if we're not sending email.
 	if len(p.Recipient) == 0 || len(p.Sender) == 0 {
 		p.Logger.Println("Empty recipient or sender; not sending email")
-	} else if err = p.sendMail(filepath.Join(tempDir, docFile)); err != nil {
-		return fmt.Errorf("Unable to send mail: %v\n", err)
+		return outDir, nil
 	}
 
-	if err = os.RemoveAll(tempDir); err != nil {
-		return err
+	docPath := filepath.Join(outDir, docFile)
+	if err = p.sendMail(docPath); err != nil {
+		return outDir, fmt.Errorf("Unable to send mail: %v\n", err)
 	}
-	return nil
+	if err = os.Remove(docPath); err != nil {
+		return outDir, err
+	}
+	return outDir, nil
 }

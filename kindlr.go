@@ -21,7 +21,11 @@ func (h handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	if len(h.password) > 0 && r.FormValue("p") != h.password {
 		h.processor.Logger.Printf("Got request with invalid password from %v\n", r.RemoteAddr)
 		rw.Write([]byte("Nope."))
-	} else if err := h.processor.ProcessUrl(r.FormValue("u")); err != nil {
+		return
+	}
+
+	_, err := h.processor.ProcessUrl(r.FormValue("u"))
+	if err != nil {
 		h.processor.Logger.Println(err)
 		rw.Write([]byte("Got an error. :-("))
 	} else {
@@ -31,6 +35,7 @@ func (h handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 type config struct {
 	ApiToken       string
+	OutputDir      string
 	MailServer     string
 	Recipient      string
 	Sender         string
@@ -39,7 +44,7 @@ type config struct {
 }
 
 func readConfig(configPath string) config {
-	c := config{DownloadImages: true}
+	c := config{OutputDir: "/tmp", DownloadImages: true}
 	f, err := os.Open(configPath)
 	if err != nil {
 		log.Fatalf("Unable to open config file %v: %v\n", configPath, err)
@@ -64,6 +69,7 @@ func main() {
 	c := readConfig(configPath)
 	p := NewProcessor()
 	p.ApiToken = c.ApiToken
+	p.BaseOutputDir = c.OutputDir
 	p.MailServer = c.MailServer
 	p.Recipient = c.Recipient
 	p.Sender = c.Sender
@@ -71,8 +77,12 @@ func main() {
 
 	if len(flag.Args()) > 0 {
 		for i := range flag.Args() {
-			if err := p.ProcessUrl(flag.Args()[i]); err != nil {
+			url := flag.Args()[i]
+			outputDir, err := p.ProcessUrl(url)
+			if err != nil {
 				log.Println(err)
+			} else {
+				log.Printf("%v -> %v\n", url, outputDir)
 			}
 		}
 	} else {
