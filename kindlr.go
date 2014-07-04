@@ -13,8 +13,9 @@ import (
 
 type config struct {
 	ApiToken       string
-	OutputDir      string
-	BaseHttpPath   string
+	BaseUrlPath    string
+	StaticDir      string
+	PageDir        string
 	MailServer     string
 	Recipient      string
 	Sender         string
@@ -23,7 +24,7 @@ type config struct {
 }
 
 func readConfig(configPath string) config {
-	c := config{OutputDir: "/tmp", DownloadImages: true}
+	c := config{PageDir: "/tmp", DownloadImages: true}
 	f, err := os.Open(configPath)
 	if err != nil {
 		log.Fatalf("Unable to open config file %v: %v\n", configPath, err)
@@ -48,7 +49,8 @@ func main() {
 	c := readConfig(configPath)
 	p := NewProcessor()
 	p.ApiToken = c.ApiToken
-	p.BaseOutputDir = c.OutputDir
+	p.BaseOutputDir = c.PageDir
+	p.BaseUrlPath = c.BaseUrlPath
 	p.MailServer = c.MailServer
 	p.Recipient = c.Recipient
 	p.Sender = c.Sender
@@ -70,7 +72,7 @@ func main() {
 			log.Fatalf("Unable to connect to syslog: %v\n", err)
 		}
 		p.Logger = logger
-		h := newHandler(p, logger, c.BaseHttpPath, c.OutputDir)
+		h := newHandler(p, logger, c.BaseUrlPath, c.StaticDir, c.PageDir)
 		h.Password = c.Password
 		fcgi.Serve(nil, *h)
 	}

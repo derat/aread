@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -64,6 +65,7 @@ type Processor struct {
 	Sender         string
 	Recipient      string
 	BaseOutputDir  string
+	BaseUrlPath    string
 	DownloadImages bool
 	Logger         *log.Logger
 }
@@ -150,14 +152,18 @@ func (p *Processor) downloadContent(contentUrl, dir string) error {
 	}
 
 	type templateData struct {
-		Content template.HTML
-		Url     string
-		Host    string
-		Title   string
-		Author  string
-		PubDate string
+		Content        template.HTML
+		Url            string
+		Host           string
+		Title          string
+		Author         string
+		PubDate        string
+		StylesheetPath string
 	}
-	d := &templateData{Url: contentUrl}
+	d := &templateData{
+		Url:            contentUrl,
+		StylesheetPath: path.Join(p.BaseUrlPath, staticUrlPath, pageCssFile),
+	}
 
 	u, err := url.Parse(contentUrl)
 	if err != nil {
@@ -196,6 +202,7 @@ func (p *Processor) downloadContent(contentUrl, dir string) error {
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
     {{if .Author}}<meta content="{{.Author}}" name="author"/>{{end}}
     <title>{{.Title}}</title>
+	<link href="{{.StylesheetPath}}" rel="stylesheet" type="text/css"/>
   </head>
   <body>
     <h3>{{.Title}}</h3>
