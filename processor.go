@@ -87,7 +87,8 @@ func (p *Processor) rewriteContent(input string) (content string, imageUrls map[
 			for i := range t.Attr {
 				if t.Attr[i].Key == "src" {
 					url := t.Attr[i].Val
-					ext := filepath.Ext(url)
+					// kindlegen seems to be confused by image files without extensions.
+					ext := filepath.Ext(strings.Split(url, "?")[0])
 					if len(ext) == 0 {
 						ext = defaultImageExtension
 					}
