@@ -64,6 +64,20 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, pagePath, http.StatusFound)
 }
 
+func (h Handler) handleArchive(w http.ResponseWriter, r *http.Request) {
+	i := r.FormValue("i")
+	if len(i) == 0 {
+		http.Error(w, "Missing ID", http.StatusBadRequest)
+		return
+	}
+	if err := h.db.TogglePageArchived(i); err != nil {
+		h.logger.Println(err)
+		http.Error(w, "Failed to toggle archived state", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, r.FormValue("r"), http.StatusFound)
+}
+
 func (h Handler) makeBookmarklet(kindle bool) string {
 	getCurUrl := "encodeURIComponent(document.URL)"
 	addUrl := path.Join(h.baseUrl.String(), addUrlPath) + "?u=\"+" + getCurUrl + "+\"&t=" + h.BookmarkletToken
@@ -78,6 +92,10 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		Pages                 []PageInfo
 		PagesPath             string
 		StylesheetPath        string
+		TogglePagePath        string
+		TogglePageString      string
+		ToggleListPath        string
+		ToggleListString      string
 		ReadBookmarkletHref   template.HTMLAttr
 		KindleBookmarkletHref template.HTMLAttr
 	}
@@ -88,8 +106,22 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		KindleBookmarkletHref: template.HTMLAttr("href=" + h.makeBookmarklet(true)),
 	}
 
+	archived := r.FormValue("a") == "1"
+	archivedListPath := h.baseUrl.Path + "?a=1"
+	if archived {
+		d.TogglePageString = "Unarchive"
+		d.TogglePagePath = path.Join(h.baseUrl.Path, archiveUrlPath) + "?r=" + url.QueryEscape(archivedListPath)
+		d.ToggleListString = "View unarchived pages"
+		d.ToggleListPath = h.baseUrl.Path
+	} else {
+		d.TogglePageString = "Archive"
+		d.TogglePagePath = path.Join(h.baseUrl.Path, archiveUrlPath) + "?r=" + url.QueryEscape(h.baseUrl.Path)
+		d.ToggleListString = "View archived pages"
+		d.ToggleListPath = archivedListPath
+	}
+
 	var err error
-	if d.Pages, err = h.db.GetPages(h.MaxListSize); err != nil {
+	if d.Pages, err = h.db.GetPages(archived, h.MaxListSize); err != nil {
 		h.logger.Printf("Unable to get pages: %v\n", err)
 		http.Error(w, "Unable to get page list", http.StatusInternalServerError)
 		return
@@ -108,16 +140,21 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
     <link href="{{.StylesheetPath}}" rel="stylesheet" type="text/css"/>
   </head>
   <body>
+    <p class="toggle-archive-list"><a href="{{.ToggleListPath}}">{{.ToggleListString}}</a></p>
     {{ range .Pages }}
     <div class="list-entry">
       <div class="title"><a href="{{$.PagesPath}}/{{.Id}}/">{{.Title}}</a></div>
       <div class="orig"><a href="{{.OriginalUrl}}">{{host .OriginalUrl}}</a></div>
-      <div class="time">Added {{time .TimeAdded}}</div>
+      <div class="details">
+        <a href="{{$.TogglePagePath}}&i={{.Id}}">{{$.TogglePageString}}</a> -
+        <span class="time">Added {{time .TimeAdded}}</span>
+      </div>
     </div>
     {{ end }}
     <div>
-      <span class="bookmarklet"><a {{.ReadBookmarkletHref}}>Add to list</a></span>
-      <span class="bookmarklet"><a {{.KindleBookmarkletHref}}>Send to Kindle</a></span>
+      <span class="bookmarklets-label">Bookmarklets:</span>
+      <div class="bookmarklet"><a {{.ReadBookmarkletHref}}>Add to list</a></div>
+      <div class="bookmarklet"><a {{.KindleBookmarkletHref}}>Send to Kindle</a></div>
     </div>
   </body>
 </html>`)
@@ -234,6 +271,8 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.handleList(w, r)
 	} else if reqPath == addUrlPath {
 		h.handleAdd(w, r)
+	} else if reqPath == archiveUrlPath {
+		h.handleArchive(w, r)
 	} else if strings.HasPrefix(reqPath, pagesUrlPath+"/") {
 		h.pageHandler.ServeHTTP(w, r)
 	} else {

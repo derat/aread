@@ -130,7 +130,7 @@ func (p *Processor) downloadImages(urls map[string]string, dir string) (totalByt
 	return totalBytes, nil
 }
 
-func (p *Processor) downloadContent(contentUrl, dir string) (title string, err error) {
+func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, err error) {
 	apiUrl := fmt.Sprintf("https://www.readability.com/api/content/v1/parser?url=%s&token=%s", url.QueryEscape(contentUrl), p.ApiToken)
 	body, err := openUrl(apiUrl)
 	if err != nil {
@@ -154,12 +154,14 @@ func (p *Processor) downloadContent(contentUrl, dir string) (title string, err e
 		Author         string
 		PubDate        string
 		StylesheetPath string
+		ArchivePath    string
 		ListPath       string
 	}
 	d := &templateData{
 		Url:            contentUrl,
 		Host:           getHost(contentUrl),
 		StylesheetPath: path.Join(p.BaseUrl.Path, staticUrlPath, cssFile),
+		ArchivePath:    path.Join(p.BaseUrl.Path, archiveUrlPath) + "?i=" + id,
 		ListPath:       p.BaseUrl.Path,
 	}
 
@@ -206,7 +208,7 @@ func (p *Processor) downloadContent(contentUrl, dir string) (title string, err e
       {{if .PubDate}}<em>Published {{.PubDate}}</em>{{end}}
     </p>
     {{.Content}}
-    <a href="{{.ListPath}}">Back to reading list</a>
+    <a href="{{.ArchivePath}}">Toggle archived</a> - <a href="{{.ListPath}}">Back to reading list</a>
   </body>
 </html>`)
 
@@ -301,7 +303,7 @@ func (p *Processor) ProcessUrl(contentUrl string, sendToKindle bool) (pi PageInf
 	if err = os.MkdirAll(outDir, 0755); err != nil {
 		return pi, err
 	}
-	if pi.Title, err = p.downloadContent(contentUrl, outDir); err != nil {
+	if pi.Title, err = p.downloadContent(contentUrl, outDir, id); err != nil {
 		return pi, err
 	}
 
