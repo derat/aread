@@ -12,6 +12,7 @@ import (
 )
 
 type Handler struct {
+	Username         string
 	Password         string
 	BookmarkletToken string
 	MaxListSize      int
@@ -134,8 +135,8 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 
 func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 	if len(r.FormValue("p")) > 0 {
-		if len(h.Password) > 0 && r.FormValue("p") == h.Password {
-			id := getSha1String(h.Password + "|" + strconv.FormatInt(time.Now().UnixNano(), 10))
+		if r.FormValue("u") == h.Username && r.FormValue("p") == h.Password {
+			id := getSha1String(h.Username + "|" + h.Password + "|" + strconv.FormatInt(time.Now().UnixNano(), 10))
 			if err := h.db.AddSession(id); err != nil {
 				h.logger.Printf("Unable to insert session: %v\n", err)
 				http.Error(w, "Unable to insert session", http.StatusInternalServerError)
@@ -168,9 +169,12 @@ func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
   </head>
   <body>
     <form method="post">
-      Password: <input type="password" name="p"><br>
 	  <input type="hidden" name="r" value={{.Redirect}}>
-      <input type="submit" value="Submit">
+      <table class="auth">
+        <tr><td>Username</td><td><input type="text" name="u"></td></tr>
+        <tr><td>Password</td><td><input type="password" name="p"></td></tr>
+        <tr><td><input type="submit" value="Submit"></td></tr>
+	  </table>
     </form>
   </body>
 </html>`)

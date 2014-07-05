@@ -21,6 +21,7 @@ type config struct {
 	MailServer       string
 	Recipient        string
 	Sender           string
+	Username         string
 	Password         string
 	BookmarkletToken string
 	DownloadImages   bool
@@ -46,7 +47,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [option]... <url>\n\nOptions:\n", os.Args[0])
 		flag.PrintDefaults()
 	}
-	flag.StringVar(&configPath, "config", filepath.Join(os.Getenv("HOME"), ".kindlr"), "Path to JSON config file")
+	flag.StringVar(&configPath, "config", filepath.Join(os.Getenv("HOME"), ".aread.json"), "Path to JSON config file")
 	flag.Parse()
 
 	c := readConfig(configPath)
@@ -88,6 +89,7 @@ func main() {
 		}
 
 		h := NewHandler(p, d, logger, u, c.StaticDir, c.PageDir)
+		h.Username = c.Username
 		h.Password = c.Password
 		h.BookmarkletToken = c.BookmarkletToken
 		fcgi.Serve(nil, *h)
