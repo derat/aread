@@ -2,10 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/url"
 	"os"
+	"path"
 )
 
 type Config struct {
@@ -22,10 +22,7 @@ type Config struct {
 	BookmarkletToken string
 	DownloadImages   bool
 	MaxListSize      int
-
-	// Automatically derived values.
-	BaseUrlPath string
-	Logger      *log.Logger
+	Logger           *log.Logger
 }
 
 func readConfig(configPath string, logger *log.Logger) (cfg Config, err error) {
@@ -43,11 +40,17 @@ func readConfig(configPath string, logger *log.Logger) (cfg Config, err error) {
 		return cfg, err
 	}
 
-	u, err := url.Parse(cfg.BaseUrl)
-	if err != nil {
-		return cfg, fmt.Errorf("Unable to parse base URL %v: %v\n", cfg.BaseUrl, err)
-	}
-	cfg.BaseUrlPath = u.Path
-
 	return cfg, nil
+}
+
+func (c *Config) GetPath(p ...string) string {
+	u, err := url.Parse(c.BaseUrl)
+	if err != nil {
+		c.Logger.Fatalf("Unable to parse base URL %v: %v\n", c.BaseUrl, err)
+	}
+
+	p = append(p, "")
+	copy(p[1:], p[0:])
+	p[0] = u.Path
+	return path.Join(p...)
 }

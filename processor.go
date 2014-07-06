@@ -14,7 +14,6 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -144,9 +143,9 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
 	d := &templateData{
 		Url:            contentUrl,
 		Host:           getHost(contentUrl),
-		StylesheetPath: path.Join(p.cfg.BaseUrlPath, staticUrlPath, cssFile),
-		ArchivePath:    path.Join(p.cfg.BaseUrlPath, archiveUrlPath) + "?i=" + id,
-		ListPath:       p.cfg.BaseUrlPath,
+		StylesheetPath: p.cfg.GetPath(staticUrlPath, cssFile),
+		ArchivePath:    p.cfg.GetPath(archiveUrlPath + "?i=" + id),
+		ListPath:       p.cfg.GetPath(),
 	}
 
 	content, err := getStringValue(&o, "content")

@@ -24,8 +24,8 @@ func NewHandler(cfg *Config, p *Processor, d *Database) Handler {
 		cfg:           cfg,
 		processor:     p,
 		db:            d,
-		staticHandler: http.StripPrefix(path.Join(cfg.BaseUrlPath, staticUrlPath), http.FileServer(http.Dir(cfg.StaticDir))),
-		pageHandler:   http.StripPrefix(path.Join(cfg.BaseUrlPath, pagesUrlPath), http.FileServer(http.Dir(cfg.PageDir))),
+		staticHandler: http.StripPrefix(cfg.GetPath(staticUrlPath), http.FileServer(http.Dir(cfg.StaticDir))),
+		pageHandler:   http.StripPrefix(cfg.GetPath(pagesUrlPath), http.FileServer(http.Dir(cfg.PageDir))),
 	}
 }
 
@@ -52,7 +52,7 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to add page", http.StatusInternalServerError)
 		return
 	}
-	pagePath := path.Join(h.cfg.BaseUrlPath, pagesUrlPath, pi.Id)
+	pagePath := h.cfg.GetPath(pagesUrlPath, pi.Id)
 	http.Redirect(w, r, pagePath, http.StatusFound)
 }
 
@@ -92,22 +92,23 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		KindleBookmarkletHref template.HTMLAttr
 	}
 	d := &templateData{
-		PagesPath:             path.Join(h.cfg.BaseUrlPath, pagesUrlPath),
-		StylesheetPath:        path.Join(h.cfg.BaseUrlPath, staticUrlPath, cssFile),
+		PagesPath:             h.cfg.GetPath(pagesUrlPath),
+		StylesheetPath:        h.cfg.GetPath(staticUrlPath, cssFile),
 		ReadBookmarkletHref:   template.HTMLAttr("href=" + h.makeBookmarklet(false)),
 		KindleBookmarkletHref: template.HTMLAttr("href=" + h.makeBookmarklet(true)),
 	}
 
 	archived := r.FormValue("a") == "1"
-	archivedListPath := h.cfg.BaseUrlPath + "?a=1"
+	archivedListPath := h.cfg.GetPath() + "?a=1"
+	unarchivedListPath := h.cfg.GetPath()
 	if archived {
 		d.TogglePageString = "Unarchive"
-		d.TogglePagePath = path.Join(h.cfg.BaseUrlPath, archiveUrlPath) + "?r=" + url.QueryEscape(archivedListPath)
+		d.TogglePagePath = h.cfg.GetPath(archiveUrlPath + "?r=" + url.QueryEscape(archivedListPath))
 		d.ToggleListString = "View unarchived pages"
-		d.ToggleListPath = h.cfg.BaseUrlPath
+		d.ToggleListPath = unarchivedListPath
 	} else {
 		d.TogglePageString = "Archive"
-		d.TogglePagePath = path.Join(h.cfg.BaseUrlPath, archiveUrlPath) + "?r=" + url.QueryEscape(h.cfg.BaseUrlPath)
+		d.TogglePagePath = h.cfg.GetPath(archiveUrlPath + "?r=" + url.QueryEscape(unarchivedListPath))
 		d.ToggleListString = "View archived pages"
 		d.ToggleListPath = archivedListPath
 	}
@@ -173,7 +174,7 @@ func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			h.cfg.Logger.Printf("Successful authentication attempt from %v\n", r.RemoteAddr)
-			cookie := fmt.Sprintf("%s=%s;Path=%s;Max-Age=%d;Secure;HttpOnly", sessionCookieName, id, h.cfg.BaseUrlPath, 86400*365*100)
+			cookie := fmt.Sprintf("%s=%s;Path=%s;Max-Age=%d;Secure;HttpOnly", sessionCookieName, id, h.cfg.GetPath(), 86400*365*100)
 			w.Header()["Set-Cookie"] = []string{cookie}
 			http.Redirect(w, r, r.FormValue("r"), http.StatusFound)
 			return
@@ -188,7 +189,7 @@ func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 	}
 	d := templateData{
 		Redirect:       r.FormValue("r"),
-		StylesheetPath: path.Join(h.cfg.BaseUrlPath, staticUrlPath, cssFile),
+		StylesheetPath: h.cfg.GetPath(staticUrlPath, cssFile),
 	}
 	tmpl, err := template.New("auth").Parse(`
 <!DOCTYPE html>
@@ -236,12 +237,12 @@ func (h Handler) isAuthenticated(r *http.Request) bool {
 }
 
 func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if !strings.HasPrefix(r.URL.Path, h.cfg.BaseUrlPath) {
+	if !strings.HasPrefix(r.URL.Path, h.cfg.GetPath()) {
 		h.cfg.Logger.Printf("Got request with unexpected path \"%v\"", r.URL.Path)
 		http.Error(w, "Unexpected path", http.StatusInternalServerError)
 		return
 	}
-	reqPath := r.URL.Path[len(h.cfg.BaseUrlPath):]
+	reqPath := r.URL.Path[len(h.cfg.GetPath()):]
 	if strings.HasPrefix(reqPath, "/") {
 		reqPath = reqPath[1:]
 	}
@@ -258,7 +259,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Everything else requires authentication.
 	if !h.isAuthenticated(r) {
 		h.cfg.Logger.Printf("Unauthenticated request from %v\n", r.RemoteAddr)
-		http.Redirect(w, r, path.Join(h.cfg.BaseUrlPath, authUrlPath+"?r="+r.URL.Path), http.StatusFound)
+		http.Redirect(w, r, h.cfg.GetPath(authUrlPath+"?r="+r.URL.Path), http.StatusFound)
 		return
 	}
 
