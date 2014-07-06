@@ -29,8 +29,21 @@ func NewHandler(cfg *Config, p *Processor, d *Database) Handler {
 	}
 }
 
+func (h Handler) getAddToken() string {
+	return getSha1String(h.cfg.Username + "|" + h.cfg.Password)
+}
+
+func (h Handler) makeBookmarklet(kindle bool) string {
+	getCurUrl := "encodeURIComponent(document.URL)"
+	addUrl := path.Join(h.cfg.BaseUrl, addUrlPath) + "?u=\"+" + getCurUrl + "+\"&t=" + h.getAddToken()
+	if kindle {
+		addUrl += "&k=1"
+	}
+	return "javascript:{window.location.href=\"" + addUrl + "\";};void(0);"
+}
+
 func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
-	if len(h.cfg.BookmarkletToken) > 0 && r.FormValue("t") != h.cfg.BookmarkletToken {
+	if r.FormValue("t") != h.getAddToken() {
 		h.cfg.Logger.Printf("Tokenless request from %v\n", r.RemoteAddr)
 		http.Error(w, "Invalid token", http.StatusForbidden)
 		return
@@ -68,15 +81,6 @@ func (h Handler) handleArchive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, r.FormValue("r"), http.StatusFound)
-}
-
-func (h Handler) makeBookmarklet(kindle bool) string {
-	getCurUrl := "encodeURIComponent(document.URL)"
-	addUrl := path.Join(h.cfg.BaseUrl, addUrlPath) + "?u=\"+" + getCurUrl + "+\"&t=" + h.cfg.BookmarkletToken
-	if kindle {
-		addUrl += "&k=1"
-	}
-	return "javascript:{window.location.href=\"" + addUrl + "\";};void(0);"
 }
 
 func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {

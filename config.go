@@ -9,20 +9,19 @@ import (
 )
 
 type Config struct {
-	ApiToken         string
-	BaseUrl          string
-	StaticDir        string
-	PageDir          string
-	Database         string
-	MailServer       string
-	Recipient        string
-	Sender           string
-	Username         string
-	Password         string
-	BookmarkletToken string
-	DownloadImages   bool
-	MaxListSize      int
-	Logger           *log.Logger
+	ApiToken       string
+	BaseUrl        string
+	StaticDir      string
+	PageDir        string
+	Database       string
+	MailServer     string
+	Recipient      string
+	Sender         string
+	Username       string
+	Password       string
+	DownloadImages bool
+	MaxListSize    int
+	Logger         *log.Logger
 }
 
 func readConfig(configPath string, logger *log.Logger) (cfg Config, err error) {
@@ -38,6 +37,10 @@ func readConfig(configPath string, logger *log.Logger) (cfg Config, err error) {
 	d := json.NewDecoder(f)
 	if err = d.Decode(&cfg); err != nil {
 		return cfg, err
+	}
+
+	if cfg.BaseUrl[len(cfg.BaseUrl)-1] == '/' {
+		cfg.BaseUrl = cfg.BaseUrl[:len(cfg.BaseUrl)-1]
 	}
 
 	return cfg, nil

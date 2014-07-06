@@ -7,9 +7,12 @@
   <body>
     <table>
       <tr><td>URL</td><td><input type="text" id="url"></td></tr>
-      <tr><td>Token</td><td><input type="password" id="token"></td></tr>
+	  <tr><td colspan="2">(Username and password are used to generate a token but don't get saved.)</td></tr>
+      <tr><td>Username</td><td><input type="text" id="username"></td></tr>
+      <tr><td>Password</td><td><input type="password" id="password"></td></tr>
       <tr><td><button id="save">Save</button></td></tr>
     <table>
+    <script src="sha1.js"></script>
     <script src="options.js"></script>
   </body>
 </html>
