@@ -180,6 +180,7 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
 <html>
   <head>
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     {{if .Author}}<meta content="{{.Author}}" name="author"/>{{end}}
     <title>{{.Title}}</title>
 	<link href="{{.StylesheetPath}}" rel="stylesheet" type="text/css"/>

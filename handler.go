@@ -128,6 +128,7 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 <html>
   <head>
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>aread</title>
     <link href="{{.StylesheetPath}}" rel="stylesheet" type="text/css"/>
   </head>
@@ -194,6 +195,7 @@ func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 <html>
   <head>
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Auth</title>
     <link href="{{.StylesheetPath}}" rel="stylesheet" type="text/css"/>
   </head>
