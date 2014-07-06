@@ -71,29 +71,55 @@ func (h Handler) isAuthenticated(r *http.Request) bool {
 
 func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 	u := r.FormValue("u")
-	if len(u) == 0 {
-		http.Error(w, "Missing URL", http.StatusBadRequest)
+	if len(u) > 0 {
+		if r.FormValue("t") != h.getAddToken() {
+			h.cfg.Logger.Printf("Bad or missing token in add request from %v\n", r.RemoteAddr)
+			http.Error(w, "Invalid token", http.StatusForbidden)
+			return
+		}
+
+		sendToKindle := r.FormValue("k") == "1"
+		pi, err := h.processor.ProcessUrl(u, sendToKindle)
+		if len(pi.Id) > 0 {
+			h.db.AddPage(pi)
+		}
+		if err != nil {
+			h.cfg.Logger.Println(err)
+			http.Error(w, "Failed to add page", http.StatusInternalServerError)
+			return
+		}
+		pagePath := h.cfg.GetPath(pagesUrlPath, pi.Id)
+		http.Redirect(w, r, pagePath, http.StatusFound)
 		return
 	}
 
-	if r.FormValue("t") != h.getAddToken() {
-		h.cfg.Logger.Printf("Tokenless request from %v\n", r.RemoteAddr)
-		http.Error(w, "Invalid token", http.StatusForbidden)
-		return
+	d := struct {
+		StylesheetPath string
+		Token          string
+	}{
+		StylesheetPath: h.cfg.GetPath(staticUrlPath, cssFile),
+		Token:          h.getAddToken(),
 	}
 
-	sendToKindle := r.FormValue("k") == "1"
-	pi, err := h.processor.ProcessUrl(u, sendToKindle)
-	if len(pi.Id) > 0 {
-		h.db.AddPage(pi)
-	}
-	if err != nil {
-		h.cfg.Logger.Println(err)
-		http.Error(w, "Failed to add page", http.StatusInternalServerError)
-		return
-	}
-	pagePath := h.cfg.GetPath(pagesUrlPath, pi.Id)
-	http.Redirect(w, r, pagePath, http.StatusFound)
+	h.serveTemplate(w, `
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Add</title>
+    <link href="{{.StylesheetPath}}" rel="stylesheet" type="text/css"/>
+  </head>
+  <body>
+    <form method="post">
+      <table>
+        <input type="hidden" name="t" value={{.Token}}>
+        <tr><td>URL</td><td><input type="text" name="u" id="add-url"></td></tr>
+        <tr><td><input type="submit" value="Add"></td></tr>
+	  </table>
+    </form>
+  </body>
+</html>`, d, template.FuncMap{})
 }
 
 func (h Handler) handleArchive(w http.ResponseWriter, r *http.Request) {
@@ -119,11 +145,13 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		TogglePageString      string
 		ToggleListPath        string
 		ToggleListString      string
+		AddPath               string
 		ReadBookmarkletHref   template.HTMLAttr
 		KindleBookmarkletHref template.HTMLAttr
 	}{
 		PagesPath:             h.cfg.GetPath(pagesUrlPath),
 		StylesheetPath:        h.cfg.GetPath(staticUrlPath, cssFile),
+		AddPath:               h.cfg.GetPath(addUrlPath),
 		ReadBookmarkletHref:   template.HTMLAttr("href=" + h.makeBookmarklet(false)),
 		KindleBookmarkletHref: template.HTMLAttr("href=" + h.makeBookmarklet(true)),
 	}
@@ -165,7 +193,7 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
     <link href="{{.StylesheetPath}}" rel="stylesheet" type="text/css"/>
   </head>
   <body>
-    <p class="toggle-archive-list"><a href="{{.ToggleListPath}}">{{.ToggleListString}}</a></p>
+    <p><a href="{{.ToggleListPath}}">{{.ToggleListString}}</a> - <a href="{{.AddPath}}">Add URL</a></p>
     {{ range .Pages }}
     <div class="list-entry">
       <div class="title"><a href="{{$.PagesPath}}/{{.Id}}/">{{.Title}}</a></div>

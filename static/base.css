@@ -58,8 +58,11 @@ div.bookmarklet a {
   color: #333;
 }
 
-table.auth {
+table {
   border: 0;
+}
+#add-url {
+  width: 300px;
 }
 
 @media only screen and (max-device-width: 480px) {
