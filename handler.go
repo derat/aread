@@ -42,16 +42,43 @@ func (h Handler) makeBookmarklet(kindle bool) string {
 	return "javascript:{window.location.href=\"" + addUrl + "\";};void(0);"
 }
 
-func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
-	if r.FormValue("t") != h.getAddToken() {
-		h.cfg.Logger.Printf("Tokenless request from %v\n", r.RemoteAddr)
-		http.Error(w, "Invalid token", http.StatusForbidden)
+func (h Handler) serveTemplate(w http.ResponseWriter, t string, d interface{}, fm template.FuncMap) {
+	tmpl, err := template.New("").Funcs(fm).Parse(t)
+	if err != nil {
+		h.cfg.Logger.Printf("Unable to parse template: %v\n", err)
+		http.Error(w, "Unable to parse template", http.StatusInternalServerError)
 		return
 	}
+	if err = tmpl.Execute(w, d); err != nil {
+		h.cfg.Logger.Printf("Unable to execute template: %v\n", err)
+		http.Error(w, "Unable to execute template", http.StatusInternalServerError)
+		return
+	}
+}
 
+func (h Handler) isAuthenticated(r *http.Request) bool {
+	c, err := r.Cookie(sessionCookieName)
+	if err != nil {
+		return false
+	}
+	isAuth, err := h.db.IsValidSession(c.Value)
+	if err != nil {
+		h.cfg.Logger.Println(err)
+		return false
+	}
+	return isAuth
+}
+
+func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 	u := r.FormValue("u")
 	if len(u) == 0 {
 		http.Error(w, "Missing URL", http.StatusBadRequest)
+		return
+	}
+
+	if r.FormValue("t") != h.getAddToken() {
+		h.cfg.Logger.Printf("Tokenless request from %v\n", r.RemoteAddr)
+		http.Error(w, "Invalid token", http.StatusForbidden)
 		return
 	}
 
@@ -84,7 +111,7 @@ func (h Handler) handleArchive(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
-	type templateData struct {
+	d := struct {
 		Pages                 []PageInfo
 		PagesPath             string
 		StylesheetPath        string
@@ -94,8 +121,7 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		ToggleListString      string
 		ReadBookmarkletHref   template.HTMLAttr
 		KindleBookmarkletHref template.HTMLAttr
-	}
-	d := &templateData{
+	}{
 		PagesPath:             h.cfg.GetPath(pagesUrlPath),
 		StylesheetPath:        h.cfg.GetPath(staticUrlPath, cssFile),
 		ReadBookmarkletHref:   template.HTMLAttr("href=" + h.makeBookmarklet(false)),
@@ -128,7 +154,8 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		"host": getHost,
 		"time": func(t int64) string { return time.Unix(t, 0).Format("Monday, January 2 at 15:04:05") },
 	}
-	tmpl, err := template.New("list").Funcs(fm).Parse(`
+
+	h.serveTemplate(w, `
 <!DOCTYPE html>
 <html>
   <head>
@@ -155,17 +182,7 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
       <div class="bookmarklet"><a {{.KindleBookmarkletHref}}>Send to Kindle</a></div>
     </div>
   </body>
-</html>`)
-	if err != nil {
-		h.cfg.Logger.Printf("Unable to parse template: %v\n", err)
-		http.Error(w, "Unable to parse template", http.StatusInternalServerError)
-		return
-	}
-	if err = tmpl.Execute(w, d); err != nil {
-		h.cfg.Logger.Printf("Unable to execute template: %v\n", err)
-		http.Error(w, "Unable to execute template", http.StatusInternalServerError)
-		return
-	}
+</html>`, d, fm)
 }
 
 func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
@@ -187,15 +204,15 @@ func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	type templateData struct {
+	d := struct {
 		Redirect       string
 		StylesheetPath string
-	}
-	d := templateData{
+	}{
 		Redirect:       r.FormValue("r"),
 		StylesheetPath: h.cfg.GetPath(staticUrlPath, cssFile),
 	}
-	tmpl, err := template.New("auth").Parse(`
+
+	h.serveTemplate(w, `
 <!DOCTYPE html>
 <html>
   <head>
@@ -214,30 +231,7 @@ func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 	  </table>
     </form>
   </body>
-</html>`)
-	if err != nil {
-		h.cfg.Logger.Printf("Unable to parse template: %v\n", err)
-		http.Error(w, "Unable to parse template", http.StatusInternalServerError)
-		return
-	}
-	if err = tmpl.Execute(w, d); err != nil {
-		h.cfg.Logger.Printf("Unable to execute template: %v\n", err)
-		http.Error(w, "Unable to execute template", http.StatusInternalServerError)
-		return
-	}
-}
-
-func (h Handler) isAuthenticated(r *http.Request) bool {
-	c, err := r.Cookie(sessionCookieName)
-	if err != nil {
-		return false
-	}
-	isAuth, err := h.db.IsValidSession(c.Value)
-	if err != nil {
-		h.cfg.Logger.Println(err)
-		return false
-	}
-	return isAuth
+</html>`, d, template.FuncMap{})
 }
 
 func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
