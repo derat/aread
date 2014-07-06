@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -136,7 +137,7 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 <html>
   <head>
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
-    <title>Reading List</title>
+    <title>aread</title>
     <link href="{{.StylesheetPath}}" rel="stylesheet" type="text/css"/>
   </head>
   <body>
@@ -180,7 +181,8 @@ func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			h.logger.Printf("Successful authentication attempt from %v\n", r.RemoteAddr)
-			w.Header()["Set-Cookie"] = []string{sessionCookie + "=" + id}
+			cookie := fmt.Sprintf("%s=%s;Path=%s;Max-Age=%d;Secure;HttpOnly", sessionCookieName, id, h.baseUrl.Path, 86400*365*100)
+			w.Header()["Set-Cookie"] = []string{cookie}
 			http.Redirect(w, r, r.FormValue("r"), http.StatusFound)
 			return
 		} else {
@@ -228,7 +230,7 @@ func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) isAuthenticated(r *http.Request) bool {
-	c, err := r.Cookie(sessionCookie)
+	c, err := r.Cookie(sessionCookieName)
 	if err != nil {
 		return false
 	}

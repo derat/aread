@@ -8,13 +8,13 @@ import (
 )
 
 const (
-	sessionCookie  = "session"
-	addUrlPath     = "add"
-	archiveUrlPath = "archive"
-	authUrlPath    = "auth"
-	staticUrlPath  = "static"
-	pagesUrlPath   = "pages"
-	cssFile        = "base.css"
+	sessionCookieName = "session"
+	addUrlPath        = "add"
+	archiveUrlPath    = "archive"
+	authUrlPath       = "auth"
+	staticUrlPath     = "static"
+	pagesUrlPath      = "pages"
+	cssFile           = "base.css"
 )
 
 type PageInfo struct {
