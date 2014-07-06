@@ -9,7 +9,6 @@ import (
 	"html/template"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/smtp"
 	"net/url"
@@ -54,22 +53,7 @@ func openUrl(url string) (io.ReadCloser, error) {
 }
 
 type Processor struct {
-	ApiToken       string
-	MailServer     string
-	Sender         string
-	Recipient      string
-	BaseOutputDir  string
-	BaseUrl        *url.URL
-	DownloadImages bool
-	Logger         *log.Logger
-}
-
-func NewProcessor() *Processor {
-	return &Processor{
-		BaseOutputDir:  "/tmp",
-		DownloadImages: true,
-		Logger:         log.New(os.Stderr, "", log.LstdFlags),
-	}
+	cfg *Config
 }
 
 func (p *Processor) rewriteContent(input string) (content string, imageUrls map[string]string, err error) {
@@ -83,7 +67,7 @@ func (p *Processor) rewriteContent(input string) (content string, imageUrls map[
 			return "", nil, z.Err()
 		}
 		t := z.Token()
-		if p.DownloadImages && t.Type == html.StartTagToken && t.Data == "img" {
+		if p.cfg.DownloadImages && t.Type == html.StartTagToken && t.Data == "img" {
 			for i := range t.Attr {
 				if t.Attr[i].Key == "src" {
 					url := t.Attr[i].Val
@@ -109,7 +93,7 @@ func (p *Processor) downloadImages(urls map[string]string, dir string) (totalByt
 	for filename, url := range urls {
 		body, err := openUrl(url)
 		if err != nil {
-			p.Logger.Printf("Failed to download image %v: %v\n", url, err)
+			p.cfg.Logger.Printf("Failed to download image %v: %v\n", url, err)
 			continue
 		}
 		defer body.Close()
@@ -123,7 +107,7 @@ func (p *Processor) downloadImages(urls map[string]string, dir string) (totalByt
 
 		numBytes, err := io.Copy(file, body)
 		if err != nil {
-			p.Logger.Printf("Unable to write image %v to %v: %v\n", url, path, err)
+			p.cfg.Logger.Printf("Unable to write image %v to %v: %v\n", url, path, err)
 		}
 		totalBytes += numBytes
 	}
@@ -131,7 +115,7 @@ func (p *Processor) downloadImages(urls map[string]string, dir string) (totalByt
 }
 
 func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, err error) {
-	apiUrl := fmt.Sprintf("https://www.readability.com/api/content/v1/parser?url=%s&token=%s", url.QueryEscape(contentUrl), p.ApiToken)
+	apiUrl := fmt.Sprintf("https://www.readability.com/api/content/v1/parser?url=%s&token=%s", url.QueryEscape(contentUrl), p.cfg.ApiToken)
 	body, err := openUrl(apiUrl)
 	if err != nil {
 		return title, err
@@ -160,9 +144,9 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
 	d := &templateData{
 		Url:            contentUrl,
 		Host:           getHost(contentUrl),
-		StylesheetPath: path.Join(p.BaseUrl.Path, staticUrlPath, cssFile),
-		ArchivePath:    path.Join(p.BaseUrl.Path, archiveUrlPath) + "?i=" + id,
-		ListPath:       p.BaseUrl.Path,
+		StylesheetPath: path.Join(p.cfg.BaseUrlPath, staticUrlPath, cssFile),
+		ArchivePath:    path.Join(p.cfg.BaseUrlPath, archiveUrlPath) + "?i=" + id,
+		ListPath:       p.cfg.BaseUrlPath,
 	}
 
 	content, err := getStringValue(&o, "content")
@@ -216,12 +200,12 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
 		return title, fmt.Errorf("Failed to execute template: %v", err)
 	}
 
-	if p.DownloadImages && len(imageUrls) > 0 {
+	if p.cfg.DownloadImages && len(imageUrls) > 0 {
 		totalBytes, err := p.downloadImages(imageUrls, dir)
 		if err != nil {
 			return title, fmt.Errorf("Unable to download images: %v", err)
 		}
-		p.Logger.Printf("Downloaded %v image(s) totalling %v byte(s)\n", len(imageUrls), totalBytes)
+		p.cfg.Logger.Printf("Downloaded %v image(s) totalling %v byte(s)\n", len(imageUrls), totalBytes)
 	}
 
 	return title, nil
@@ -230,7 +214,7 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
 func (p *Processor) buildDoc(dir string) error {
 	c := exec.Command("docker", "run", "-v", dir+":/source", "jagregory/kindlegen", indexFile, "-o", docFile)
 	o, err := c.CombinedOutput()
-	p.Logger.Printf("kindlegen output:%s", strings.Replace("\n"+string(o), "\n", "\n  ", -1))
+	p.cfg.Logger.Printf("kindlegen output:%s", strings.Replace("\n"+string(o), "\n", "\n  ", -1))
 	if err != nil {
 		// kindlegen returns 1 for warnings and 2 for fatal errors.
 		if status, ok := err.(*exec.ExitError); !ok || status.Sys().(syscall.WaitStatus).ExitStatus() != 1 {
@@ -265,15 +249,15 @@ func (p *Processor) sendMail(docPath string) error {
 			"Content-Transfer-Encoding:base64\r\n"+
 			"Content-Disposition: attachment; filename=\"%s\";\r\n"+
 			"\r\n"+
-			"%s\r\n", p.Sender, p.Recipient, filepath.Base(docPath), buf.String())
-	p.Logger.Printf("Sending %v-byte message to %v\n", len(body), p.Recipient)
+			"%s\r\n", p.cfg.Sender, p.cfg.Recipient, filepath.Base(docPath), buf.String())
+	p.cfg.Logger.Printf("Sending %v-byte message to %v\n", len(body), p.cfg.Recipient)
 
-	c, err := smtp.Dial(p.MailServer)
+	c, err := smtp.Dial(p.cfg.MailServer)
 	if err != nil {
 		return err
 	}
-	c.Mail(p.Sender)
-	c.Rcpt(p.Recipient)
+	c.Mail(p.cfg.Sender)
+	c.Rcpt(p.cfg.Recipient)
 	w, err := c.Data()
 	if err != nil {
 		return err
@@ -290,11 +274,11 @@ func (p *Processor) ProcessUrl(contentUrl string, sendToKindle bool) (pi PageInf
 	pi.TimeAdded = time.Now().Unix()
 
 	id := getSha1String(contentUrl)
-	outDir := filepath.Join(p.BaseOutputDir, id)
-	p.Logger.Printf("Processing %v in %v\n", contentUrl, outDir)
+	outDir := filepath.Join(p.cfg.PageDir, id)
+	p.cfg.Logger.Printf("Processing %v in %v\n", contentUrl, outDir)
 
 	if _, err = os.Stat(outDir); err == nil {
-		p.Logger.Printf("Deleting existing %v directory\n", outDir)
+		p.cfg.Logger.Printf("Deleting existing %v directory\n", outDir)
 		if err = os.RemoveAll(outDir); err != nil {
 			return pi, err
 		}
@@ -315,8 +299,8 @@ func (p *Processor) ProcessUrl(contentUrl string, sendToKindle bool) (pi PageInf
 			return pi, err
 		}
 		// Leave the .mobi file lying around if we're not sending email.
-		if len(p.Recipient) == 0 || len(p.Sender) == 0 {
-			p.Logger.Println("Empty recipient or sender; not sending email")
+		if len(p.cfg.Recipient) == 0 || len(p.cfg.Sender) == 0 {
+			p.cfg.Logger.Println("Empty recipient or sender; not sending email")
 			return pi, nil
 		}
 		docPath := filepath.Join(outDir, docFile)
