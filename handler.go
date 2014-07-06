@@ -72,7 +72,7 @@ func (h Handler) handleArchive(w http.ResponseWriter, r *http.Request) {
 
 func (h Handler) makeBookmarklet(kindle bool) string {
 	getCurUrl := "encodeURIComponent(document.URL)"
-	addUrl := path.Join(h.cfg.BaseUrlPath, addUrlPath) + "?u=\"+" + getCurUrl + "+\"&t=" + h.cfg.BookmarkletToken
+	addUrl := path.Join(h.cfg.BaseUrl, addUrlPath) + "?u=\"+" + getCurUrl + "+\"&t=" + h.cfg.BookmarkletToken
 	if kindle {
 		addUrl += "&k=1"
 	}
