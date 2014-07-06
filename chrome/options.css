@@ -1,0 +1,12 @@
+body {
+  font-family: 'Arial', sans;
+  font-size: 12px;
+}
+
+#url {
+  width: 300px;
+}
+
+#token {
+  width: 100px;
+}

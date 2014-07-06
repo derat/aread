@@ -1,0 +1,19 @@
+body {
+  width: 100px;
+  font-family: 'Arial', sans;
+  font-size: 12px;
+}
+
+div {
+  margin: 5px;
+}
+
+a {
+  text-decoration: none;
+  cursor: pointer;
+  color: black;
+}
+
+a:hover {
+  color: #666;
+}
