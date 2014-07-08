@@ -15,6 +15,17 @@ a:visited {
   color: #505030;
 }
 
+article span.pb-caption {
+  font-size: 13px;
+}
+article blockquote {
+  background-color: #dbdbd7;
+  -webkit-margin-start: 20px;
+  -webkit-margin-end: 20px;
+  padding: 2px 1em;
+  border-radius: 16px;
+}
+
 div.list-entry {
   margin-bottom: 20px;
 }
@@ -66,5 +77,13 @@ table {
 }
 
 @media only screen and (max-device-width: 480px) {
-  body { max-width: 100%; }
+  body {
+    margin: 12px;
+    max-width: 100%;
+    font-size: 15px;
+  }
+
+  div.list-entry div.title {
+    font-size: 18px;
+  }
 }
