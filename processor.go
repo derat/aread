@@ -194,7 +194,7 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
     <div class="content">
       {{.Content}}
     </div>
-    <a href="{{.ArchivePath}}">Toggle archived</a> - <a href="{{.ListPath}}">Back to reading list</a>
+    <p><a href="{{.ArchivePath}}">Toggle archived</a> - <a href="{{.ListPath}}">Back to reading list</a></p>
   </body>
 </html>`)
 

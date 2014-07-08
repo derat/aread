@@ -7,14 +7,14 @@ body {
   color: black;
   background-color: #f5f5f0;
 }
-
-a {
+table {
+  border: 0;
+}
+a, a:visited {
   color: #a05030;
 }
-a:visited {
-  color: #505030;
-}
 
+/* Pages */
 div.content span.pb-caption, figcaption {
   font-size: 13px;
 }
@@ -28,7 +28,11 @@ div.content blockquote {
 div.content img {
   width: 100%;
 }
+div.content a:visited {
+  color: #505030;
+}
 
+/* List */
 div.list-entry {
   margin-bottom: 20px;
 }
@@ -52,7 +56,6 @@ div.list-entry div.details {
 div.list-entry div.details span.time {
   color: #808070;
 }
-
 span.bookmarklets-label {
   font-size: 14px;
   margin-right: 8px;
@@ -72,9 +75,7 @@ div.bookmarklet a {
   color: #333;
 }
 
-table {
-  border: 0;
-}
+/* Add */
 #add-url {
   width: 300px;
 }
