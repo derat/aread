@@ -15,15 +15,18 @@ a:visited {
   color: #505030;
 }
 
-article span.pb-caption {
+div.content span.pb-caption, figcaption {
   font-size: 13px;
 }
-article blockquote {
+div.content blockquote {
   background-color: #dbdbd7;
   -webkit-margin-start: 20px;
   -webkit-margin-end: 20px;
   padding: 2px 1em;
   border-radius: 16px;
+}
+div.content img {
+  width: 100%;
 }
 
 div.list-entry {

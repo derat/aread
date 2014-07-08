@@ -191,7 +191,9 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
       {{if .Author}}<b>By {{.Author}}</b><br>{{end}}
       {{if .PubDate}}<em>Published {{.PubDate}}</em>{{end}}
     </p>
-    {{.Content}}
+    <div class="content">
+      {{.Content}}
+    </div>
     <a href="{{.ArchivePath}}">Toggle archived</a> - <a href="{{.ListPath}}">Back to reading list</a>
   </body>
 </html>`)
