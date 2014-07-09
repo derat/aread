@@ -26,7 +26,7 @@ div.content blockquote {
   border-radius: 16px;
 }
 div.content img {
-  width: 100%;
+  max-width: 100%;
 }
 div.content a:visited {
   color: #505030;
