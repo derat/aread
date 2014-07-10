@@ -185,16 +185,21 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
 	<link href="{{.StylesheetPath}}" rel="stylesheet" type="text/css"/>
   </head>
   <body>
-    <h3>{{.Title}}</h3>
+    <h3 id="title-header">{{.Title}}</h3>
     <p>
       <a href="{{.Url}}">{{.Host}}</a><br>
       {{if .Author}}<b>By {{.Author}}</b><br>{{end}}
-      {{if .PubDate}}<em>Published {{.PubDate}}</em>{{end}}
+      {{if .PubDate}}<em>Published {{.PubDate}}</em><br>{{end}}
+      <a href="#end-paragraph" id="jump-to-bottom-link">Jump to bottom</a>
     </p>
     <div class="content">
       {{.Content}}
     </div>
-    <p><a href="{{.ArchivePath}}">Toggle archived</a> - <a href="{{.ListPath}}">Back to reading list</a></p>
+    <p id="end-paragraph">
+      <a href="{{.ArchivePath}}">Toggle archived</a> -
+      <a href="#title-header">Jump to top</a> -
+      <a href="{{.ListPath}}">Back to list</a>
+    </p>
   </body>
 </html>`)
 

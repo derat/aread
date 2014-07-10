@@ -15,6 +15,9 @@ a, a:visited {
 }
 
 /* Pages */
+#jump-to-bottom-link {
+  font-size: 14px;
+}
 div.content span.pb-caption, figcaption {
   font-size: 13px;
 }
