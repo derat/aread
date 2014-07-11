@@ -47,7 +47,7 @@ func main() {
 	} else {
 		for i := range flag.Args() {
 			url := flag.Args()[i]
-			if pi, err := p.ProcessUrl(url, false); err == nil {
+			if pi, err := p.ProcessUrl(url); err == nil {
 				logger.Printf("Processed %v (%v)\n", url, pi.Title)
 			} else {
 				logger.Println(err)

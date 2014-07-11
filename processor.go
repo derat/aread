@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -100,7 +101,7 @@ func (p *Processor) downloadImages(urls map[string]string, dir string) (totalByt
 		path := filepath.Join(dir, filename)
 		file, err := os.Create(path)
 		if err != nil {
-			return totalBytes, fmt.Errorf("Unable to open %v for image %v: %v\n", path, url, err)
+			return totalBytes, fmt.Errorf("Unable to open %v for image %v: %v", path, url, err)
 		}
 		defer file.Close()
 
@@ -276,12 +277,12 @@ func (p *Processor) sendMail(docPath string) error {
 	return nil
 }
 
-func (p *Processor) ProcessUrl(contentUrl string, sendToKindle bool) (pi PageInfo, err error) {
+func (p *Processor) ProcessUrl(contentUrl string) (pi PageInfo, err error) {
 	pi.OriginalUrl = contentUrl
 	pi.TimeAdded = time.Now().Unix()
 
-	id := getSha1String(contentUrl)
-	outDir := filepath.Join(p.cfg.PageDir, id)
+	pi.Id = getSha1String(contentUrl)
+	outDir := filepath.Join(p.cfg.PageDir, pi.Id)
 	p.cfg.Logger.Printf("Processing %v in %v\n", contentUrl, outDir)
 
 	if _, err = os.Stat(outDir); err == nil {
@@ -294,30 +295,38 @@ func (p *Processor) ProcessUrl(contentUrl string, sendToKindle bool) (pi PageInf
 	if err = os.MkdirAll(outDir, 0755); err != nil {
 		return pi, err
 	}
-	if pi.Title, err = p.downloadContent(contentUrl, outDir, id); err != nil {
+	if pi.Title, err = p.downloadContent(contentUrl, outDir, pi.Id); err != nil {
 		return pi, err
 	}
+	return pi, nil
+}
 
-	// Okay, we got the page.
-	pi.Id = id
-
-	if sendToKindle {
-		if err = p.buildDoc(outDir); err != nil {
-			return pi, err
-		}
-		// Leave the .mobi file lying around if we're not sending email.
-		if len(p.cfg.Recipient) == 0 || len(p.cfg.Sender) == 0 {
-			p.cfg.Logger.Println("Empty recipient or sender; not sending email")
-			return pi, nil
-		}
-		docPath := filepath.Join(outDir, docFile)
-		if err = p.sendMail(docPath); err != nil {
-			return pi, fmt.Errorf("Unable to send mail: %v\n", err)
-		}
-		if err = os.Remove(docPath); err != nil {
-			return pi, err
-		}
+func (p *Processor) SendToKindle(id string) error {
+	if matched, err := regexp.Match("^[a-f0-9]+$", []byte(id)); err != nil {
+		return err
+	} else if !matched {
+		return fmt.Errorf("Invalid ID")
 	}
 
-	return pi, nil
+	outDir := filepath.Join(p.cfg.PageDir, id)
+	if _, err := os.Stat(outDir); err != nil {
+		return fmt.Errorf("Nonexistent directory")
+	}
+
+	if err := p.buildDoc(outDir); err != nil {
+		return err
+	}
+	// Leave the .mobi file lying around if we're not sending email.
+	if len(p.cfg.Recipient) == 0 || len(p.cfg.Sender) == 0 {
+		p.cfg.Logger.Println("Empty recipient or sender; not sending email")
+		return nil
+	}
+	docPath := filepath.Join(outDir, docFile)
+	if err := p.sendMail(docPath); err != nil {
+		return fmt.Errorf("Unable to send mail: %v", err)
+	}
+	if err := os.Remove(docPath); err != nil {
+		return err
+	}
+	return nil
 }

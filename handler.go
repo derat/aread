@@ -78,18 +78,26 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		sendToKindle := r.FormValue("k") == "1"
-		pi, err := h.processor.ProcessUrl(u, sendToKindle)
-		if len(pi.Id) > 0 {
-			h.db.AddPage(pi)
-		}
+		pi, err := h.processor.ProcessUrl(u)
 		if err != nil {
 			h.cfg.Logger.Println(err)
-			http.Error(w, "Failed to add page", http.StatusInternalServerError)
+			http.Error(w, "Failed to process page", http.StatusInternalServerError)
 			return
 		}
-		pagePath := h.cfg.GetPath(pagesUrlPath, pi.Id)
-		http.Redirect(w, r, pagePath, http.StatusFound)
+		if err = h.db.AddPage(pi); err != nil {
+			h.cfg.Logger.Println(err)
+			http.Error(w, "Failed to add to database", http.StatusInternalServerError)
+			return
+		}
+		if r.FormValue("k") == "1" {
+			if err = h.processor.SendToKindle(pi.Id); err != nil {
+				h.cfg.Logger.Println(err)
+				http.Error(w, "Failed to send to Kindle", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		http.Redirect(w, r, h.cfg.GetPath(pagesUrlPath, pi.Id), http.StatusFound)
 		return
 	}
 
