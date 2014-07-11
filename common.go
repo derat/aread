@@ -15,6 +15,7 @@ const (
 	staticUrlPath     = "static"
 	pagesUrlPath      = "pages"
 	cssFile           = "base.css"
+	faviconFile       = "favicon.ico"
 )
 
 type PageInfo struct {

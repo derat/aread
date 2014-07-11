@@ -95,9 +95,11 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 
 	d := struct {
 		StylesheetPath string
+		FaviconPath    string
 		Token          string
 	}{
 		StylesheetPath: h.cfg.GetPath(staticUrlPath, cssFile),
+		FaviconPath:    h.cfg.GetPath(staticUrlPath, faviconFile),
 		Token:          h.getAddToken(),
 	}
 
@@ -109,6 +111,7 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Add</title>
     <link href="{{.StylesheetPath}}" rel="stylesheet" type="text/css"/>
+	<link href="{{.FaviconPath}}" rel="icon"/>
   </head>
   <body>
     <form method="post">
@@ -141,6 +144,7 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		Pages                 []PageInfo
 		PagesPath             string
 		StylesheetPath        string
+		FaviconPath           string
 		TogglePagePath        string
 		TogglePageString      string
 		ToggleListPath        string
@@ -151,6 +155,7 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	}{
 		PagesPath:             h.cfg.GetPath(pagesUrlPath),
 		StylesheetPath:        h.cfg.GetPath(staticUrlPath, cssFile),
+		FaviconPath:           h.cfg.GetPath(staticUrlPath, faviconFile),
 		AddPath:               h.cfg.GetPath(addUrlPath),
 		ReadBookmarkletHref:   template.HTMLAttr("href=" + h.makeBookmarklet(false)),
 		KindleBookmarkletHref: template.HTMLAttr("href=" + h.makeBookmarklet(true)),
@@ -191,6 +196,7 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>aread</title>
     <link href="{{.StylesheetPath}}" rel="stylesheet" type="text/css"/>
+	<link href="{{.FaviconPath}}" rel="icon"/>
   </head>
   <body>
     <p><a href="{{.ToggleListPath}}">{{.ToggleListString}}</a> - <a href="{{.AddPath}}">Add URL</a></p>
@@ -235,9 +241,11 @@ func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 	d := struct {
 		Redirect       string
 		StylesheetPath string
+		FaviconPath    string
 	}{
 		Redirect:       r.FormValue("r"),
 		StylesheetPath: h.cfg.GetPath(staticUrlPath, cssFile),
+		FaviconPath:    h.cfg.GetPath(staticUrlPath, faviconFile),
 	}
 
 	h.serveTemplate(w, `
@@ -248,6 +256,7 @@ func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Auth</title>
     <link href="{{.StylesheetPath}}" rel="stylesheet" type="text/css"/>
+	<link href="{{.FaviconPath}}" rel="icon"/>
   </head>
   <body>
     <form method="post">
@@ -275,6 +284,10 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if strings.HasPrefix(reqPath, staticUrlPath+"/") {
 		h.staticHandler.ServeHTTP(w, r)
+		return
+	}
+	if reqPath == "favicon.ico" {
+		http.Redirect(w, r, h.cfg.GetPath(staticUrlPath, "favicon.ico"), http.StatusFound)
 		return
 	}
 	if reqPath == authUrlPath {
