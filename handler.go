@@ -4,11 +4,15 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"net/url"
 	"path"
 	"strconv"
 	"strings"
 	"time"
+)
+
+const (
+	addUrlParam    = "u"
+	addKindleParam = "k"
 )
 
 type Handler struct {
@@ -35,9 +39,9 @@ func (h Handler) getAddToken() string {
 
 func (h Handler) makeBookmarklet(kindle bool) string {
 	getCurUrl := "encodeURIComponent(document.URL)"
-	addUrl := path.Join(h.cfg.BaseUrl, addUrlPath) + "?u=\"+" + getCurUrl + "+\"&" + tokenParam + "=" + h.getAddToken()
+	addUrl := path.Join(h.cfg.BaseUrl, addUrlPath) + "?" + addUrlParam + "=\"+" + getCurUrl + "+\"&" + tokenParam + "=" + h.getAddToken()
 	if kindle {
-		addUrl += "&k=1"
+		addUrl += "&" + addKindleParam + "=1"
 	}
 	return "javascript:{window.location.href=\"" + addUrl + "\";};void(0);"
 }
@@ -62,9 +66,9 @@ func (h Handler) isAuthenticated(r *http.Request) bool {
 }
 
 func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
-	u := r.FormValue("u")
+	u := r.FormValue(addUrlParam)
 	if len(u) > 0 {
-		if r.FormValue("t") != h.getAddToken() {
+		if r.FormValue(tokenParam) != h.getAddToken() {
 			h.cfg.Logger.Printf("Bad or missing token in add request from %v\n", r.RemoteAddr)
 			http.Error(w, "Invalid token", http.StatusForbidden)
 			return
@@ -81,7 +85,7 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Failed to add to database", http.StatusInternalServerError)
 			return
 		}
-		if r.FormValue("k") == "1" {
+		if r.FormValue(addKindleParam) == "1" {
 			if err = h.processor.SendToKindle(pi.Id); err != nil {
 				h.cfg.Logger.Println(err)
 				http.Error(w, "Failed to send to Kindle", http.StatusInternalServerError)
@@ -123,7 +127,7 @@ func (h Handler) handleArchive(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to toggle archived state", http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, r.FormValue("r"), http.StatusFound)
+	http.Redirect(w, r, r.FormValue(redirectParam), http.StatusFound)
 }
 
 func (h Handler) handleKindle(w http.ResponseWriter, r *http.Request) {
@@ -142,7 +146,7 @@ func (h Handler) handleKindle(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to send to Kindle", http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, r.FormValue("r"), http.StatusFound)
+	http.Redirect(w, r, r.FormValue(redirectParam), http.StatusFound)
 }
 
 func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
@@ -168,12 +172,10 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	unarchivedListPath := h.cfg.GetPath()
 	if archived {
 		d.TogglePageString = "Unarchive"
-		d.TogglePagePath = h.cfg.GetPath(archiveUrlPath + "?" + redirectParam + "=" + url.QueryEscape(archivedListPath))
 		d.ToggleListString = "View unarchived pages"
 		d.ToggleListPath = unarchivedListPath
 	} else {
 		d.TogglePageString = "Archive"
-		d.TogglePagePath = h.cfg.GetPath(archiveUrlPath + "?" + redirectParam + "=" + url.QueryEscape(unarchivedListPath))
 		d.ToggleListString = "View archived pages"
 		d.ToggleListPath = archivedListPath
 	}
@@ -188,6 +190,13 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	fm := template.FuncMap{
 		"host": getHost,
 		"time": func(t int64) string { return time.Unix(t, 0).Format("Monday, January 2 at 15:04:05") },
+		"toggleUrl": func(id, token string) string {
+			listPath := unarchivedListPath
+			if archived {
+				listPath = archivedListPath
+			}
+			return fmt.Sprintf("%s?%s=%s&%s=%s&%s=%s", h.cfg.GetPath(archiveUrlPath), idParam, id, tokenParam, token, redirectParam, listPath)
+		},
 	}
 
 	writeHeader(w, h.cfg, "aread", "", "")
@@ -200,8 +209,7 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
       <div class="title"><a href="{{$.PagesPath}}/{{.Id}}/">{{.Title}}</a></div>
       <div class="orig"><a href="{{.OriginalUrl}}">{{host .OriginalUrl}}</a></div>
       <div class="details">
-        <a href="{{$.TogglePagePath}}&i={{.Id}}&t={{.Token}}">{{$.TogglePageString}}</a> -
-        <span class="time">Added {{time .TimeAdded}}</span>
+        <a href="{{toggleUrl .Id .Token}}">{{$.TogglePageString}}</a> - <span class="time">Added {{time .TimeAdded}}</span>
       </div>
     </div>
     {{ end }}
