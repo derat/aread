@@ -52,6 +52,26 @@ func openUrl(url string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
+func getLocalImageFilename(url string) string {
+	// kindlegen seems to be confused by image files without extensions.
+	ext := filepath.Ext(strings.Split(url, "?")[0])
+	if len(ext) == 0 {
+		ext = defaultImageExtension
+	}
+	return getSha1String(url) + ext
+}
+
+func getFaviconUrl(origUrl string) (string, error) {
+	u, err := url.Parse(origUrl)
+	if err != nil {
+		return "", err
+	}
+	u.Path = "/favicon.ico"
+	u.RawQuery = ""
+	u.Fragment = ""
+	return u.String(), nil
+}
+
 type Processor struct {
 	cfg *Config
 }
@@ -71,14 +91,9 @@ func (p *Processor) rewriteContent(input string) (content string, imageUrls map[
 			for i := range t.Attr {
 				if t.Attr[i].Key == "src" {
 					url := t.Attr[i].Val
-					// kindlegen seems to be confused by image files without extensions.
-					ext := filepath.Ext(strings.Split(url, "?")[0])
-					if len(ext) == 0 {
-						ext = defaultImageExtension
-					}
-					name := getSha1String(url) + ext
-					imageUrls[name] = url
-					t.Attr[i].Val = name
+					filename := getLocalImageFilename(url)
+					imageUrls[filename] = url
+					t.Attr[i].Val = filename
 				}
 			}
 		} else if t.Type == html.StartTagToken && t.Data == "iframe" {
@@ -131,16 +146,17 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
 	}
 
 	type templateData struct {
-		Content        template.HTML
-		Url            string
-		Host           string
-		Title          string
-		Author         string
-		PubDate        string
-		StylesheetPath string
-		ArchivePath    string
-		KindlePath     string
-		ListPath       string
+		Content         template.HTML
+		Url             string
+		Host            string
+		Title           string
+		Author          string
+		PubDate         string
+		FaviconFilename string
+		StylesheetPath  string
+		ArchivePath     string
+		KindlePath      string
+		ListPath        string
 	}
 	d := &templateData{
 		Url:            contentUrl,
@@ -164,12 +180,31 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
 	d.Author, _ = getStringValue(&o, "author")
 	d.PubDate, _ = getStringValue(&o, "date_published")
 
+	// filename -> URL
 	var imageUrls map[string]string
 	content, imageUrls, err = p.rewriteContent(content)
 	if err != nil {
 		return title, fmt.Errorf("Unable to process content: %v", err)
 	}
 	d.Content = template.HTML(content)
+
+	if faviconUrl, err := getFaviconUrl(contentUrl); err != nil {
+		p.cfg.Logger.Printf("Unable to generate favicon URL for %v: %v", contentUrl, err)
+	} else {
+		d.FaviconFilename = getLocalImageFilename(faviconUrl)
+		imageUrls[d.FaviconFilename] = faviconUrl
+	}
+
+	if p.cfg.DownloadImages && len(imageUrls) > 0 {
+		totalBytes, err := p.downloadImages(imageUrls, dir)
+		if err != nil {
+			return title, fmt.Errorf("Unable to download images: %v", err)
+		}
+		p.cfg.Logger.Printf("Downloaded %v image(s) totalling %v byte(s)\n", len(imageUrls), totalBytes)
+	}
+	if _, err := os.Stat(filepath.Join(dir, d.FaviconFilename)); err != nil {
+		d.FaviconFilename = ""
+	}
 
 	contentFile, err := os.Create(filepath.Join(dir, "index.html"))
 	if err != nil {
@@ -185,7 +220,8 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
 	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     {{if .Author}}<meta content="{{.Author}}" name="author"/>{{end}}
     <title>{{.Title}}</title>
-	<link href="{{.StylesheetPath}}" rel="stylesheet" type="text/css"/>
+	<link rel="stylesheet" href="{{.StylesheetPath}}"/>
+	{{if .FaviconFilename}}<link rel="icon" href="{{.FaviconFilename}}"/>{{end}}
   </head>
   <body>
     <h3 id="title-header">{{.Title}}</h3>
@@ -211,14 +247,6 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
 
 	if err = tmpl.Execute(contentFile, d); err != nil {
 		return title, fmt.Errorf("Failed to execute template: %v", err)
-	}
-
-	if p.cfg.DownloadImages && len(imageUrls) > 0 {
-		totalBytes, err := p.downloadImages(imageUrls, dir)
-		if err != nil {
-			return title, fmt.Errorf("Unable to download images: %v", err)
-		}
-		p.cfg.Logger.Printf("Downloaded %v image(s) totalling %v byte(s)\n", len(imageUrls), totalBytes)
 	}
 
 	return title, nil

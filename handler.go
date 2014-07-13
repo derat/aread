@@ -118,8 +118,8 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Add</title>
-    <link href="{{.StylesheetPath}}" rel="stylesheet" type="text/css"/>
-	<link href="{{.FaviconPath}}" rel="icon"/>
+    <link rel="stylesheet" href="{{.StylesheetPath}}"/>
+	<link rel="icon" href="{{.FaviconPath}}"/>
   </head>
   <body>
     <form method="post">
@@ -225,8 +225,8 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>aread</title>
-    <link href="{{.StylesheetPath}}" rel="stylesheet" type="text/css"/>
-	<link href="{{.FaviconPath}}" rel="icon"/>
+    <link rel="stylesheet" href="{{.StylesheetPath}}"/>
+	<link rel="icon" href="{{.FaviconPath}}"/>
   </head>
   <body>
     <p><a href="{{.ToggleListPath}}">{{.ToggleListString}}</a> - <a href="{{.AddPath}}">Add URL</a></p>
@@ -285,8 +285,8 @@ func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Auth</title>
-    <link href="{{.StylesheetPath}}" rel="stylesheet" type="text/css"/>
-	<link href="{{.FaviconPath}}" rel="icon"/>
+    <link rel="stylesheet" href="{{.StylesheetPath}}"/>
+	<link rel="icon" href="{{.FaviconPath}}"/>
   </head>
   <body>
     <form method="post">
