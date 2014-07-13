@@ -12,14 +12,14 @@ import (
 )
 
 type Handler struct {
-	cfg           *Config
+	cfg           Config
 	processor     *Processor
 	db            *Database
 	staticHandler http.Handler
 	pageHandler   http.Handler
 }
 
-func NewHandler(cfg *Config, p *Processor, d *Database) Handler {
+func NewHandler(cfg Config, p *Processor, d *Database) Handler {
 	return Handler{
 		cfg:           cfg,
 		processor:     p,
@@ -43,16 +43,8 @@ func (h Handler) makeBookmarklet(kindle bool) string {
 }
 
 func (h Handler) serveTemplate(w http.ResponseWriter, t string, d interface{}, fm template.FuncMap) {
-	tmpl, err := template.New("").Funcs(fm).Parse(t)
-	if err != nil {
-		h.cfg.Logger.Printf("Unable to parse template: %v\n", err)
-		http.Error(w, "Unable to parse template", http.StatusInternalServerError)
-		return
-	}
-	if err = tmpl.Execute(w, d); err != nil {
-		h.cfg.Logger.Printf("Unable to execute template: %v\n", err)
-		http.Error(w, "Unable to execute template", http.StatusInternalServerError)
-		return
+	if err := writeTemplate(w, h.cfg, t, d, fm); err != nil {
+		http.Error(w, "Template error", http.StatusInternalServerError)
 	}
 }
 
@@ -101,26 +93,8 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	d := struct {
-		StylesheetPath string
-		FaviconPath    string
-		Token          string
-	}{
-		StylesheetPath: h.cfg.GetPath(staticUrlPath, cssFile),
-		FaviconPath:    h.cfg.GetPath(staticUrlPath, faviconFile),
-		Token:          h.getAddToken(),
-	}
-
+	writePageHeader(w, h.cfg, "Add", "")
 	h.serveTemplate(w, `
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
-	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Add</title>
-    <link rel="stylesheet" href="{{.StylesheetPath}}"/>
-	<link rel="icon" href="{{.FaviconPath}}"/>
-  </head>
   <body>
     <form method="post">
       <table>
@@ -130,7 +104,7 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 	  </table>
     </form>
   </body>
-</html>`, d, template.FuncMap{})
+</html>`, struct{ Token string }{Token: h.getAddToken()}, template.FuncMap{})
 }
 
 func (h Handler) handleArchive(w http.ResponseWriter, r *http.Request) {
@@ -173,8 +147,6 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	d := struct {
 		Pages                 []PageInfo
 		PagesPath             string
-		StylesheetPath        string
-		FaviconPath           string
 		TogglePagePath        string
 		TogglePageString      string
 		ToggleListPath        string
@@ -184,8 +156,6 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		KindleBookmarkletHref template.HTMLAttr
 	}{
 		PagesPath:             h.cfg.GetPath(pagesUrlPath),
-		StylesheetPath:        h.cfg.GetPath(staticUrlPath, cssFile),
-		FaviconPath:           h.cfg.GetPath(staticUrlPath, faviconFile),
 		AddPath:               h.cfg.GetPath(addUrlPath),
 		ReadBookmarkletHref:   template.HTMLAttr("href=" + h.makeBookmarklet(false)),
 		KindleBookmarkletHref: template.HTMLAttr("href=" + h.makeBookmarklet(true)),
@@ -218,16 +188,9 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		"time": func(t int64) string { return time.Unix(t, 0).Format("Monday, January 2 at 15:04:05") },
 	}
 
+	writePageHeader(w, h.cfg, "aread", "")
 	h.serveTemplate(w, `
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
-	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>aread</title>
-    <link rel="stylesheet" href="{{.StylesheetPath}}"/>
-	<link rel="icon" href="{{.FaviconPath}}"/>
-  </head>
   <body>
     <p><a href="{{.ToggleListPath}}">{{.ToggleListString}}</a> - <a href="{{.AddPath}}">Add URL</a></p>
     {{ range .Pages }}
@@ -268,37 +231,19 @@ func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	d := struct {
-		Redirect       string
-		StylesheetPath string
-		FaviconPath    string
-	}{
-		Redirect:       r.FormValue("r"),
-		StylesheetPath: h.cfg.GetPath(staticUrlPath, cssFile),
-		FaviconPath:    h.cfg.GetPath(staticUrlPath, faviconFile),
-	}
-
+	writePageHeader(w, h.cfg, "Auth", "")
 	h.serveTemplate(w, `
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
-	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Auth</title>
-    <link rel="stylesheet" href="{{.StylesheetPath}}"/>
-	<link rel="icon" href="{{.FaviconPath}}"/>
-  </head>
   <body>
     <form method="post">
-	  <input type="hidden" name="r" value={{.Redirect}}>
+      <input type="hidden" name="r" value={{.Redirect}}>
       <table class="auth">
         <tr><td>Username</td><td><input type="text" name="u"></td></tr>
         <tr><td>Password</td><td><input type="password" name="p"></td></tr>
         <tr><td><input type="submit" value="Submit"></td></tr>
-	  </table>
+      </table>
     </form>
   </body>
-</html>`, d, template.FuncMap{})
+</html>`, struct{ Redirect string }{Redirect: r.FormValue("r")}, template.FuncMap{})
 }
 
 func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

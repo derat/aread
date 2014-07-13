@@ -43,7 +43,7 @@ func main() {
 			logger.Fatalln(err)
 		}
 		logger.Println("Accepting connections")
-		fcgi.Serve(nil, NewHandler(&cfg, p, db))
+		fcgi.Serve(nil, NewHandler(cfg, p, db))
 	} else {
 		for i := range flag.Args() {
 			url := flag.Args()[i]
