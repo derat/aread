@@ -147,6 +147,28 @@ func (h Handler) handleArchive(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, r.FormValue("r"), http.StatusFound)
 }
 
+func (h Handler) handleKindle(w http.ResponseWriter, r *http.Request) {
+	i := r.FormValue("i")
+	if len(i) == 0 {
+		http.Error(w, "Missing ID", http.StatusBadRequest)
+		return
+	}
+	if v, err := h.db.IsValidPageId(i); err != nil {
+		h.cfg.Logger.Println(err)
+		http.Error(w, "Failed to look up page ID", http.StatusInternalServerError)
+		return
+	} else if !v {
+		http.Error(w, "Invalid page ID", http.StatusInternalServerError)
+		return
+	}
+	if err := h.processor.SendToKindle(i); err != nil {
+		h.cfg.Logger.Println(err)
+		http.Error(w, "Failed to send to Kindle", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, r.FormValue("r"), http.StatusFound)
+}
+
 func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	d := struct {
 		Pages                 []PageInfo
@@ -316,6 +338,8 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.handleAdd(w, r)
 	} else if reqPath == archiveUrlPath {
 		h.handleArchive(w, r)
+	} else if reqPath == kindleUrlPath {
+		h.handleKindle(w, r)
 	} else if strings.HasPrefix(reqPath, pagesUrlPath+"/") {
 		h.pageHandler.ServeHTTP(w, r)
 	} else {

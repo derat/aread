@@ -51,6 +51,15 @@ func (d *Database) AddSession(id string) error {
 	return nil
 }
 
+func (d *Database) IsValidPageId(id string) (bool, error) {
+	rows, err := d.db.Query("SELECT Id FROM Pages WHERE Id = ?", id)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	return rows.Next(), nil
+}
+
 func (d *Database) AddPage(pi PageInfo) error {
 	q := "INSERT OR REPLACE INTO Pages (Id, OriginalUrl, Title, TimeAdded) VALUES(?, ?, ?, ?)"
 	if _, err := d.db.Exec(q, pi.Id, pi.OriginalUrl, pi.Title, pi.TimeAdded); err != nil {

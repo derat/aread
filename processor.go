@@ -139,13 +139,15 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
 		PubDate        string
 		StylesheetPath string
 		ArchivePath    string
+		KindlePath     string
 		ListPath       string
 	}
 	d := &templateData{
 		Url:            contentUrl,
 		Host:           getHost(contentUrl),
 		StylesheetPath: p.cfg.GetPath(staticUrlPath, cssFile),
-		ArchivePath:    p.cfg.GetPath(archiveUrlPath + "?i=" + id),
+		ArchivePath:    p.cfg.GetPath(archiveUrlPath + "?i=" + id + "&r=" + url.QueryEscape(p.cfg.GetPath())),
+		KindlePath:     p.cfg.GetPath(kindleUrlPath + "?i=" + id + "&r=" + url.QueryEscape(p.cfg.GetPath())),
 		ListPath:       p.cfg.GetPath(),
 	}
 
@@ -191,7 +193,10 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
       <a href="{{.Url}}">{{.Host}}</a><br>
       {{if .Author}}<b>By {{.Author}}</b><br>{{end}}
       {{if .PubDate}}<em>Published {{.PubDate}}</em><br>{{end}}
-      <a href="#end-paragraph" id="jump-to-bottom-link">Jump to bottom</a>
+      <span id="top-links">
+        <a href="#end-paragraph">Jump to bottom</a> -
+        <a href="{{.KindlePath}}">Send to Kindle</a>
+      </span>
     </p>
     <div class="content">
       {{.Content}}
@@ -281,6 +286,7 @@ func (p *Processor) ProcessUrl(contentUrl string) (pi PageInfo, err error) {
 	pi.OriginalUrl = contentUrl
 	pi.TimeAdded = time.Now().Unix()
 
+	// TODO(derat): Mix something else into ID so it's not guessable (CSRF on /archive and /kindle).
 	pi.Id = getSha1String(contentUrl)
 	outDir := filepath.Join(p.cfg.PageDir, pi.Id)
 	p.cfg.Logger.Printf("Processing %v in %v\n", contentUrl, outDir)

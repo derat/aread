@@ -12,6 +12,7 @@ const (
 	addUrlPath        = "add"
 	archiveUrlPath    = "archive"
 	authUrlPath       = "auth"
+	kindleUrlPath     = "kindle"
 	staticUrlPath     = "static"
 	pagesUrlPath      = "pages"
 	cssFile           = "base.css"
