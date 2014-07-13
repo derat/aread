@@ -93,7 +93,7 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writePageHeader(w, h.cfg, "Add", "")
+	writeHeader(w, h.cfg, "Add", "", "")
 	h.serveTemplate(w, `
   <body>
     <form method="post">
@@ -188,7 +188,7 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		"time": func(t int64) string { return time.Unix(t, 0).Format("Monday, January 2 at 15:04:05") },
 	}
 
-	writePageHeader(w, h.cfg, "aread", "")
+	writeHeader(w, h.cfg, "aread", "", "")
 	h.serveTemplate(w, `
 <!DOCTYPE html>
   <body>
@@ -231,7 +231,7 @@ func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writePageHeader(w, h.cfg, "Auth", "")
+	writeHeader(w, h.cfg, "Auth", "", "")
 	h.serveTemplate(w, `
   <body>
     <form method="post">

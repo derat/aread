@@ -55,15 +55,17 @@ func writeTemplate(w io.Writer, c Config, t string, d interface{}, fm template.F
 }
 
 // Writes everything up to the closing </head> tag.
-func writePageHeader(w io.Writer, c Config, title, faviconPath string) {
+func writeHeader(w io.Writer, c Config, title, faviconPath, author string) {
 	d := struct {
 		Title          string
 		StylesheetPath string
 		FaviconPath    string
+		Author         string
 	}{
 		Title:          title,
 		StylesheetPath: c.GetPath(staticUrlPath, cssFile),
 		FaviconPath:    c.GetPath(staticUrlPath, faviconFile),
+		Author:         author,
 	}
 
 	if len(faviconPath) > 0 {
@@ -76,9 +78,10 @@ func writePageHeader(w io.Writer, c Config, title, faviconPath string) {
   <head>
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    {{if .Author}}<meta content="{{.Author}}" name="author"/>{{end}}
     <title>{{.Title}}</title>
     <link rel="stylesheet" href="{{.StylesheetPath}}"/>
-	<link rel="icon" href="{{.FaviconPath}}"/>
+    <link rel="icon" href="{{.FaviconPath}}"/>
   </head>
 `
 	if err := writeTemplate(w, c, t, d, template.FuncMap{}); err != nil {

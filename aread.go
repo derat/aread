@@ -35,7 +35,7 @@ func main() {
 		logger.Fatalf("Unable to read config from %v: %v\n", err)
 	}
 
-	p := &Processor{cfg: &cfg}
+	p := &Processor{cfg: cfg}
 
 	if daemon {
 		db, err := NewDatabase(cfg.Database)

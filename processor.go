@@ -73,7 +73,7 @@ func getFaviconUrl(origUrl string) (string, error) {
 }
 
 type Processor struct {
-	cfg *Config
+	cfg Config
 }
 
 func (p *Processor) rewriteContent(input string) (content string, imageUrls map[string]string, err error) {
@@ -146,17 +146,16 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
 	}
 
 	type templateData struct {
-		Content         template.HTML
-		Url             string
-		Host            string
-		Title           string
-		Author          string
-		PubDate         string
-		FaviconFilename string
-		StylesheetPath  string
-		ArchivePath     string
-		KindlePath      string
-		ListPath        string
+		Content        template.HTML
+		Url            string
+		Host           string
+		Title          string
+		Author         string
+		PubDate        string
+		StylesheetPath string
+		ArchivePath    string
+		KindlePath     string
+		ListPath       string
 	}
 	d := &templateData{
 		Url:            contentUrl,
@@ -188,11 +187,12 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
 	}
 	d.Content = template.HTML(content)
 
+	var faviconFilename string
 	if faviconUrl, err := getFaviconUrl(contentUrl); err != nil {
 		p.cfg.Logger.Printf("Unable to generate favicon URL for %v: %v", contentUrl, err)
 	} else {
-		d.FaviconFilename = getLocalImageFilename(faviconUrl)
-		imageUrls[d.FaviconFilename] = faviconUrl
+		faviconFilename = getLocalImageFilename(faviconUrl)
+		imageUrls[faviconFilename] = faviconUrl
 	}
 
 	if p.cfg.DownloadImages && len(imageUrls) > 0 {
@@ -202,8 +202,8 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
 		}
 		p.cfg.Logger.Printf("Downloaded %v image(s) totalling %v byte(s)\n", len(imageUrls), totalBytes)
 	}
-	if _, err := os.Stat(filepath.Join(dir, d.FaviconFilename)); err != nil {
-		d.FaviconFilename = ""
+	if _, err := os.Stat(filepath.Join(dir, faviconFilename)); err != nil {
+		faviconFilename = ""
 	}
 
 	contentFile, err := os.Create(filepath.Join(dir, "index.html"))
@@ -212,17 +212,8 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
 	}
 	defer contentFile.Close()
 
-	tmpl, err := template.New("doc").Parse(`
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
-	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    {{if .Author}}<meta content="{{.Author}}" name="author"/>{{end}}
-    <title>{{.Title}}</title>
-	<link rel="stylesheet" href="{{.StylesheetPath}}"/>
-	{{if .FaviconFilename}}<link rel="icon" href="{{.FaviconFilename}}"/>{{end}}
-  </head>
+	writeHeader(contentFile, p.cfg, title, faviconFilename, d.Author)
+	t := `
   <body>
     <h3 id="title-header">{{.Title}}</h3>
     <p>
@@ -243,10 +234,9 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
       <a href="{{.ListPath}}">Back to list</a>
     </p>
   </body>
-</html>`)
-
-	if err = tmpl.Execute(contentFile, d); err != nil {
-		return title, fmt.Errorf("Failed to execute template: %v", err)
+</html>`
+	if err := writeTemplate(contentFile, p.cfg, t, d, template.FuncMap{}); err != nil {
+		return title, fmt.Errorf("Failed to execute page template: %v", err)
 	}
 
 	return title, nil
