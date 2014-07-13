@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
+	"time"
 )
 
 type Database struct {
@@ -25,7 +26,9 @@ func NewDatabase(path string) (*Database, error) {
 			Token STRING NOT NULL,
 			Archived BOOLEAN NOT NULL DEFAULT 0)`,
 		`CREATE TABLE IF NOT EXISTS Sessions (
-			Id STRING NOT NULL)`,
+			Id STRING NOT NULL,
+			TimeAdded INTEGER,
+			IpAddress STRING)`,
 	} {
 		if _, err = db.Exec(q); err != nil {
 			return nil, fmt.Errorf("Unable to initialize database: %v", err)
@@ -45,8 +48,8 @@ func (d *Database) IsValidSession(id string) (bool, error) {
 	return rows.Next(), nil
 }
 
-func (d *Database) AddSession(id string) error {
-	if _, err := d.db.Exec("INSERT OR REPLACE INTO Sessions (Id) VALUES(?)", id); err != nil {
+func (d *Database) AddSession(id, ip string) error {
+	if _, err := d.db.Exec("INSERT OR REPLACE INTO Sessions (Id, TimeAdded, IpAddress) VALUES(?, ?, ?)", id, time.Now().Unix(), ip); err != nil {
 		return err
 	}
 	return nil

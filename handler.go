@@ -226,7 +226,7 @@ func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 	if len(r.FormValue("p")) > 0 {
 		if r.FormValue("u") == h.cfg.Username && r.FormValue("p") == h.cfg.Password {
 			id := getSha1String(h.cfg.Username + "|" + h.cfg.Password + "|" + strconv.FormatInt(time.Now().UnixNano(), 10))
-			if err := h.db.AddSession(id); err != nil {
+			if err := h.db.AddSession(id, r.RemoteAddr); err != nil {
 				h.cfg.Logger.Printf("Unable to insert session: %v\n", err)
 				http.Error(w, "Unable to insert session", http.StatusInternalServerError)
 				return
