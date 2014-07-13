@@ -104,29 +104,41 @@ func (p *Processor) rewriteContent(input string) (content string, imageUrls map[
 	}
 }
 
-func (p *Processor) downloadImages(urls map[string]string, dir string) (totalBytes int64, err error) {
+func (p *Processor) downloadImages(urls map[string]string, dir string) (totalBytes int64) {
+	c := make(chan int64)
 	for filename, url := range urls {
-		body, err := openUrl(url)
-		if err != nil {
-			p.cfg.Logger.Printf("Failed to download image %v: %v\n", url, err)
-			continue
-		}
-		defer body.Close()
+		go func(filename, url string) {
+			var bytes int64 = 0
+			defer func() { c <- bytes }()
 
-		path := filepath.Join(dir, filename)
-		file, err := os.Create(path)
-		if err != nil {
-			return totalBytes, fmt.Errorf("Unable to open %v for image %v: %v", path, url, err)
-		}
-		defer file.Close()
+			body, err := openUrl(url)
+			if err != nil {
+				p.cfg.Logger.Printf("Failed to download image %v: %v\n", url, err)
+				return
+			}
+			defer body.Close()
 
-		numBytes, err := io.Copy(file, body)
-		if err != nil {
-			p.cfg.Logger.Printf("Unable to write image %v to %v: %v\n", url, path, err)
-		}
-		totalBytes += numBytes
+			path := filepath.Join(dir, filename)
+			file, err := os.Create(path)
+			if err != nil {
+				p.cfg.Logger.Printf("Unable to open %v for image %v: %v\n", path, url, err)
+				return
+			}
+			defer file.Close()
+
+			bytes, err = io.Copy(file, body)
+			if err != nil {
+				p.cfg.Logger.Printf("Unable to write image %v to %v: %v\n", url, path, err)
+				return
+			}
+		}(filename, url)
 	}
-	return totalBytes, nil
+
+	for i := 0; i < len(urls); i++ {
+		totalBytes += <-c
+	}
+	close(c)
+	return totalBytes
 }
 
 func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err error) {
@@ -194,10 +206,7 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 	}
 
 	if p.cfg.DownloadImages && len(imageUrls) > 0 {
-		totalBytes, err := p.downloadImages(imageUrls, dir)
-		if err != nil {
-			return title, fmt.Errorf("Unable to download images: %v", err)
-		}
+		totalBytes := p.downloadImages(imageUrls, dir)
 		p.cfg.Logger.Printf("Downloaded %v image(s) totalling %v byte(s)\n", len(imageUrls), totalBytes)
 	}
 	if _, err := os.Stat(filepath.Join(dir, faviconFilename)); err != nil {
