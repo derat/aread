@@ -22,6 +22,7 @@ func NewDatabase(path string) (*Database, error) {
 			OriginalUrl STRING NOT NULL,
 			Title STRING NOT NULL,
 			TimeAdded INTEGER NOT NULL,
+			Token STRING NOT NULL,
 			Archived BOOLEAN NOT NULL DEFAULT 0)`,
 		`CREATE TABLE IF NOT EXISTS Sessions (
 			Id STRING NOT NULL)`,
@@ -51,25 +52,31 @@ func (d *Database) AddSession(id string) error {
 	return nil
 }
 
-func (d *Database) IsValidPageId(id string) (bool, error) {
-	rows, err := d.db.Query("SELECT Id FROM Pages WHERE Id = ?", id)
-	if err != nil {
-		return false, err
-	}
-	defer rows.Close()
-	return rows.Next(), nil
-}
-
 func (d *Database) AddPage(pi PageInfo) error {
-	q := "INSERT OR REPLACE INTO Pages (Id, OriginalUrl, Title, TimeAdded) VALUES(?, ?, ?, ?)"
-	if _, err := d.db.Exec(q, pi.Id, pi.OriginalUrl, pi.Title, pi.TimeAdded); err != nil {
+	q := "INSERT OR REPLACE INTO Pages (Id, OriginalUrl, Title, TimeAdded, Token) VALUES(?, ?, ?, ?, ?)"
+	if _, err := d.db.Exec(q, pi.Id, pi.OriginalUrl, pi.Title, pi.TimeAdded, pi.Token); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (d *Database) GetPages(archived bool, maxPages int) (pages []PageInfo, err error) {
-	q := "SELECT Id, OriginalUrl, Title, TimeAdded FROM Pages WHERE Archived = ? ORDER BY TimeAdded DESC LIMIT ?"
+func (d *Database) GetPage(id string) (pi PageInfo, err error) {
+	rows, err := d.db.Query("SELECT Id, OriginalUrl, Title, TimeAdded, Token FROM Pages WHERE Id = ?", id)
+	if err != nil {
+		return pi, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return pi, fmt.Errorf("Page not found")
+	}
+	if err = rows.Scan(&pi.Id, &pi.OriginalUrl, &pi.Title, &pi.TimeAdded, &pi.Token); err != nil {
+		return pi, err
+	}
+	return pi, nil
+}
+
+func (d *Database) GetAllPages(archived bool, maxPages int) (pages []PageInfo, err error) {
+	q := "SELECT Id, OriginalUrl, Title, TimeAdded, Token FROM Pages WHERE Archived = ? ORDER BY TimeAdded DESC LIMIT ?"
 	rows, err := d.db.Query(q, archived, maxPages)
 	if err != nil {
 		return pages, err
@@ -77,7 +84,9 @@ func (d *Database) GetPages(archived bool, maxPages int) (pages []PageInfo, err 
 	defer rows.Close()
 	for rows.Next() {
 		pi := PageInfo{}
-		rows.Scan(&pi.Id, &pi.OriginalUrl, &pi.Title, &pi.TimeAdded)
+		if err = rows.Scan(&pi.Id, &pi.OriginalUrl, &pi.Title, &pi.TimeAdded, &pi.Token); err != nil {
+			return pages, err
+		}
 		pages = append(pages, pi)
 	}
 	return pages, nil

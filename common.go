@@ -18,6 +18,11 @@ const (
 	pagesUrlPath      = "pages"
 	cssFile           = "base.css"
 	faviconFile       = "favicon.ico"
+
+	// Query parameter names for HTTP requests.
+	idParam       = "i"
+	tokenParam    = "t"
+	redirectParam = "r"
 )
 
 type PageInfo struct {
@@ -25,6 +30,7 @@ type PageInfo struct {
 	OriginalUrl string
 	Title       string
 	TimeAdded   int64 // time_t
+	Token       string
 }
 
 func getHost(urlStr string) string {

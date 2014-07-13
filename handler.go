@@ -35,7 +35,7 @@ func (h Handler) getAddToken() string {
 
 func (h Handler) makeBookmarklet(kindle bool) string {
 	getCurUrl := "encodeURIComponent(document.URL)"
-	addUrl := path.Join(h.cfg.BaseUrl, addUrlPath) + "?u=\"+" + getCurUrl + "+\"&t=" + h.getAddToken()
+	addUrl := path.Join(h.cfg.BaseUrl, addUrlPath) + "?u=\"+" + getCurUrl + "+\"&" + tokenParam + "=" + h.getAddToken()
 	if kindle {
 		addUrl += "&k=1"
 	}
@@ -108,12 +108,17 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) handleArchive(w http.ResponseWriter, r *http.Request) {
-	i := r.FormValue("i")
-	if len(i) == 0 {
-		http.Error(w, "Missing ID", http.StatusBadRequest)
+	pi, err := h.db.GetPage(r.FormValue(idParam))
+	if err != nil {
+		http.Error(w, "Unable to find page", http.StatusBadRequest)
 		return
 	}
-	if err := h.db.TogglePageArchived(i); err != nil {
+	if len(pi.Token) > 0 && r.FormValue(tokenParam) != pi.Token {
+		h.cfg.Logger.Printf("Bad or missing token in archive request from %v\n", r.RemoteAddr)
+		http.Error(w, "Invalid token", http.StatusBadRequest)
+		return
+	}
+	if err := h.db.TogglePageArchived(pi.Id); err != nil {
 		h.cfg.Logger.Println(err)
 		http.Error(w, "Failed to toggle archived state", http.StatusInternalServerError)
 		return
@@ -122,20 +127,17 @@ func (h Handler) handleArchive(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) handleKindle(w http.ResponseWriter, r *http.Request) {
-	i := r.FormValue("i")
-	if len(i) == 0 {
-		http.Error(w, "Missing ID", http.StatusBadRequest)
+	pi, err := h.db.GetPage(r.FormValue(idParam))
+	if err != nil {
+		http.Error(w, "Unable to find page", http.StatusBadRequest)
 		return
 	}
-	if v, err := h.db.IsValidPageId(i); err != nil {
-		h.cfg.Logger.Println(err)
-		http.Error(w, "Failed to look up page ID", http.StatusInternalServerError)
-		return
-	} else if !v {
-		http.Error(w, "Invalid page ID", http.StatusInternalServerError)
+	if len(pi.Token) > 0 && r.FormValue(tokenParam) != pi.Token {
+		h.cfg.Logger.Printf("Bad or missing token in kindle request from %v\n", r.RemoteAddr)
+		http.Error(w, "Invalid token", http.StatusBadRequest)
 		return
 	}
-	if err := h.processor.SendToKindle(i); err != nil {
+	if err := h.processor.SendToKindle(pi.Id); err != nil {
 		h.cfg.Logger.Println(err)
 		http.Error(w, "Failed to send to Kindle", http.StatusInternalServerError)
 		return
@@ -166,18 +168,18 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	unarchivedListPath := h.cfg.GetPath()
 	if archived {
 		d.TogglePageString = "Unarchive"
-		d.TogglePagePath = h.cfg.GetPath(archiveUrlPath + "?r=" + url.QueryEscape(archivedListPath))
+		d.TogglePagePath = h.cfg.GetPath(archiveUrlPath + "?" + redirectParam + "=" + url.QueryEscape(archivedListPath))
 		d.ToggleListString = "View unarchived pages"
 		d.ToggleListPath = unarchivedListPath
 	} else {
 		d.TogglePageString = "Archive"
-		d.TogglePagePath = h.cfg.GetPath(archiveUrlPath + "?r=" + url.QueryEscape(unarchivedListPath))
+		d.TogglePagePath = h.cfg.GetPath(archiveUrlPath + "?" + redirectParam + "=" + url.QueryEscape(unarchivedListPath))
 		d.ToggleListString = "View archived pages"
 		d.ToggleListPath = archivedListPath
 	}
 
 	var err error
-	if d.Pages, err = h.db.GetPages(archived, h.cfg.MaxListSize); err != nil {
+	if d.Pages, err = h.db.GetAllPages(archived, h.cfg.MaxListSize); err != nil {
 		h.cfg.Logger.Printf("Unable to get pages: %v\n", err)
 		http.Error(w, "Unable to get page list", http.StatusInternalServerError)
 		return
@@ -198,7 +200,7 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
       <div class="title"><a href="{{$.PagesPath}}/{{.Id}}/">{{.Title}}</a></div>
       <div class="orig"><a href="{{.OriginalUrl}}">{{host .OriginalUrl}}</a></div>
       <div class="details">
-        <a href="{{$.TogglePagePath}}&i={{.Id}}">{{$.TogglePageString}}</a> -
+        <a href="{{$.TogglePagePath}}&i={{.Id}}&t={{.Token}}">{{$.TogglePageString}}</a> -
         <span class="time">Added {{time .TimeAdded}}</span>
       </div>
     </div>
@@ -273,7 +275,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Everything else requires authentication.
 	if !h.isAuthenticated(r) {
 		h.cfg.Logger.Printf("Unauthenticated request from %v\n", r.RemoteAddr)
-		http.Redirect(w, r, h.cfg.GetPath(authUrlPath+"?r="+r.URL.Path), http.StatusFound)
+		http.Redirect(w, r, h.cfg.GetPath(authUrlPath+"?"+redirectParam+"="+r.URL.Path), http.StatusFound)
 		return
 	}
 

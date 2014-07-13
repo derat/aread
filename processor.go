@@ -129,8 +129,8 @@ func (p *Processor) downloadImages(urls map[string]string, dir string) (totalByt
 	return totalBytes, nil
 }
 
-func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, err error) {
-	apiUrl := fmt.Sprintf("https://www.readability.com/api/content/v1/parser?url=%s&token=%s", url.QueryEscape(contentUrl), p.cfg.ApiToken)
+func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err error) {
+	apiUrl := fmt.Sprintf("https://www.readability.com/api/content/v1/parser?url=%s&token=%s", url.QueryEscape(pi.OriginalUrl), p.cfg.ApiToken)
 	body, err := openUrl(apiUrl)
 	if err != nil {
 		return title, err
@@ -145,25 +145,23 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
 		return title, fmt.Errorf("Unable to unmarshal JSON from %v: %v", apiUrl, err)
 	}
 
-	type templateData struct {
-		Content        template.HTML
-		Url            string
-		Host           string
-		Title          string
-		Author         string
-		PubDate        string
-		StylesheetPath string
-		ArchivePath    string
-		KindlePath     string
-		ListPath       string
-	}
-	d := &templateData{
-		Url:            contentUrl,
-		Host:           getHost(contentUrl),
-		StylesheetPath: p.cfg.GetPath(staticUrlPath, cssFile),
-		ArchivePath:    p.cfg.GetPath(archiveUrlPath + "?i=" + id + "&r=" + url.QueryEscape(p.cfg.GetPath())),
-		KindlePath:     p.cfg.GetPath(kindleUrlPath + "?i=" + id + "&r=" + url.QueryEscape(p.cfg.GetPath())),
-		ListPath:       p.cfg.GetPath(),
+	queryParams := fmt.Sprintf("?%s=%s&%s=%s&%s=%s", idParam, pi.Id, tokenParam, pi.Token, redirectParam, url.QueryEscape(p.cfg.GetPath()))
+	d := struct {
+		Content     template.HTML
+		Url         string
+		Host        string
+		Title       string
+		Author      string
+		PubDate     string
+		ArchivePath string
+		KindlePath  string
+		ListPath    string
+	}{
+		Url:         pi.OriginalUrl,
+		Host:        getHost(pi.OriginalUrl),
+		ArchivePath: p.cfg.GetPath(archiveUrlPath + queryParams),
+		KindlePath:  p.cfg.GetPath(kindleUrlPath + queryParams),
+		ListPath:    p.cfg.GetPath(),
 	}
 
 	content, err := getStringValue(&o, "content")
@@ -173,7 +171,7 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
 
 	title, _ = getStringValue(&o, "title")
 	if len(title) == 0 {
-		title = contentUrl
+		title = pi.OriginalUrl
 	}
 	d.Title = title
 	d.Author, _ = getStringValue(&o, "author")
@@ -188,8 +186,8 @@ func (p *Processor) downloadContent(contentUrl, dir, id string) (title string, e
 	d.Content = template.HTML(content)
 
 	var faviconFilename string
-	if faviconUrl, err := getFaviconUrl(contentUrl); err != nil {
-		p.cfg.Logger.Printf("Unable to generate favicon URL for %v: %v", contentUrl, err)
+	if faviconUrl, err := getFaviconUrl(pi.OriginalUrl); err != nil {
+		p.cfg.Logger.Printf("Unable to generate favicon URL for %v: %v", pi.OriginalUrl, err)
 	} else {
 		faviconFilename = getLocalImageFilename(faviconUrl)
 		imageUrls[faviconFilename] = faviconUrl
@@ -301,11 +299,11 @@ func (p *Processor) sendMail(docPath string) error {
 }
 
 func (p *Processor) ProcessUrl(contentUrl string) (pi PageInfo, err error) {
+	pi.Id = getSha1String(contentUrl)
 	pi.OriginalUrl = contentUrl
 	pi.TimeAdded = time.Now().Unix()
+	pi.Token = getSha1String(fmt.Sprintf("%s|%s|%s", p.cfg.Username, p.cfg.Password, contentUrl))
 
-	// TODO(derat): Mix something else into ID so it's not guessable (CSRF on /archive and /kindle).
-	pi.Id = getSha1String(contentUrl)
 	outDir := filepath.Join(p.cfg.PageDir, pi.Id)
 	p.cfg.Logger.Printf("Processing %v in %v\n", contentUrl, outDir)
 
@@ -319,7 +317,7 @@ func (p *Processor) ProcessUrl(contentUrl string) (pi PageInfo, err error) {
 	if err = os.MkdirAll(outDir, 0755); err != nil {
 		return pi, err
 	}
-	if pi.Title, err = p.downloadContent(contentUrl, outDir, pi.Id); err != nil {
+	if pi.Title, err = p.downloadContent(pi, outDir); err != nil {
 		return pi, err
 	}
 	return pi, nil
