@@ -9,19 +9,20 @@ import (
 )
 
 type Config struct {
-	ApiToken       string
-	BaseUrl        string
-	StaticDir      string
-	PageDir        string
-	Database       string
-	MailServer     string
-	Recipient      string
-	Sender         string
-	Username       string
-	Password       string
-	DownloadImages bool
-	MaxListSize    int
-	Logger         *log.Logger
+	ApiToken         string
+	BaseUrl          string
+	StaticDir        string
+	PageDir          string
+	Database         string
+	MailServer       string
+	Recipient        string
+	Sender           string
+	Username         string
+	Password         string
+	DownloadImages   bool
+	DownloadFavicons bool
+	MaxListSize      int
+	Logger           *log.Logger
 }
 
 func readConfig(configPath string, logger *log.Logger) (cfg Config, err error) {

@@ -198,19 +198,23 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 	d.Content = template.HTML(content)
 
 	var faviconFilename string
-	if faviconUrl, err := getFaviconUrl(pi.OriginalUrl); err != nil {
-		p.cfg.Logger.Printf("Unable to generate favicon URL for %v: %v", pi.OriginalUrl, err)
-	} else {
-		faviconFilename = getLocalImageFilename(faviconUrl)
-		imageUrls[faviconFilename] = faviconUrl
+	if p.cfg.DownloadFavicons {
+		if faviconUrl, err := getFaviconUrl(pi.OriginalUrl); err != nil {
+			p.cfg.Logger.Printf("Unable to generate favicon URL for %v: %v", pi.OriginalUrl, err)
+		} else {
+			faviconFilename = getLocalImageFilename(faviconUrl)
+			imageUrls[faviconFilename] = faviconUrl
+		}
 	}
 
 	if p.cfg.DownloadImages && len(imageUrls) > 0 {
 		totalBytes := p.downloadImages(imageUrls, dir)
 		p.cfg.Logger.Printf("Downloaded %v image(s) totalling %v byte(s)\n", len(imageUrls), totalBytes)
 	}
-	if _, err := os.Stat(filepath.Join(dir, faviconFilename)); err != nil {
-		faviconFilename = ""
+	if len(faviconFilename) > 0 {
+		if _, err := os.Stat(filepath.Join(dir, faviconFilename)); err != nil {
+			faviconFilename = ""
+		}
 	}
 
 	contentFile, err := os.Create(filepath.Join(dir, "index.html"))
