@@ -28,8 +28,8 @@ div.content blockquote {
   padding: 2px 1em;
   border-radius: 16px;
 }
-div.content a.skip-to-text-link {
-  /* NYT "Continue reading the main story" links */
+div.content a.skip-to-text-link,  /* NYT "Continue reading the main story" links */
+div.content div.socialStrip {     /* nationaljournal.com */
   display: none;
 }
 div.content img {
@@ -37,6 +37,11 @@ div.content img {
 }
 div.content a:visited {
   color: #505030;
+}
+@media amzn-mobi {
+  #top-links, #end-paragraph {
+    display: none;
+  }
 }
 
 /* List */

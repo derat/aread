@@ -226,7 +226,7 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 	writeHeader(contentFile, p.cfg, title, faviconFilename, d.Author)
 	t := `
   <body>
-    <h3 id="title-header">{{.Title}}</h3>
+    <h2 id="title-header">{{.Title}}</h2>
     <p>
       <a href="{{.Url}}">{{.Host}}</a><br>
       {{if .Author}}<b>By {{.Author}}</b><br>{{end}}
