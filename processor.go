@@ -217,13 +217,20 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 		}
 	}
 
+	cssFiles := []string{commonCssFile, pageCssFile}
+	for _, file := range cssFiles {
+		if err = copyFile(filepath.Join(dir, file), filepath.Join(p.cfg.StaticDir, file)); err != nil {
+			return title, err
+		}
+	}
+
 	contentFile, err := os.Create(filepath.Join(dir, "index.html"))
 	if err != nil {
 		return title, err
 	}
 	defer contentFile.Close()
 
-	writeHeader(contentFile, p.cfg, title, faviconFilename, d.Author)
+	writeHeader(contentFile, p.cfg, cssFiles, title, faviconFilename, d.Author)
 	t := `
   <body>
     <h2 id="title-header">{{.Title}}</h2>

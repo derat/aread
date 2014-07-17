@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"io"
 	"net/url"
+	"os"
 )
 
 const (
@@ -16,7 +17,9 @@ const (
 	kindleUrlPath     = "kindle"
 	staticUrlPath     = "static"
 	pagesUrlPath      = "pages"
-	cssFile           = "base.css"
+	appCssFile        = "app.css"
+	commonCssFile     = "common.css"
+	pageCssFile       = "page.css"
 	faviconFile       = "favicon.ico"
 
 	// Query parameter names for HTTP requests.
@@ -47,6 +50,25 @@ func getSha1String(input string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
+func copyFile(dest, src string) error {
+	s, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
+	d, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(d, s); err != nil {
+		d.Close()
+		return err
+	}
+	return d.Close()
+}
+
 func writeTemplate(w io.Writer, c Config, t string, d interface{}, fm template.FuncMap) error {
 	tmpl, err := template.New("").Funcs(fm).Parse(t)
 	if err != nil {
@@ -61,21 +83,21 @@ func writeTemplate(w io.Writer, c Config, t string, d interface{}, fm template.F
 }
 
 // Writes everything up to the closing </head> tag.
-func writeHeader(w io.Writer, c Config, title, faviconPath, author string) {
+func writeHeader(w io.Writer, c Config, stylesheets []string, title, favicon, author string) {
 	d := struct {
-		Title          string
-		StylesheetPath string
-		FaviconPath    string
-		Author         string
+		Title       string
+		Stylesheets []string
+		Favicon     string
+		Author      string
 	}{
-		Title:          title,
-		StylesheetPath: c.GetPath(staticUrlPath, cssFile),
-		FaviconPath:    c.GetPath(staticUrlPath, faviconFile),
-		Author:         author,
+		Title:       title,
+		Stylesheets: stylesheets,
+		Favicon:     c.GetPath(staticUrlPath, faviconFile),
+		Author:      author,
 	}
 
-	if len(faviconPath) > 0 {
-		d.FaviconPath = faviconPath
+	if len(favicon) > 0 {
+		d.Favicon = favicon
 	}
 
 	t := `
@@ -86,8 +108,8 @@ func writeHeader(w io.Writer, c Config, title, faviconPath, author string) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     {{if .Author}}<meta content="{{.Author}}" name="author"/>{{end}}
     <title>{{.Title}}</title>
-    <link rel="stylesheet" href="{{.StylesheetPath}}"/>
-    <link rel="icon" href="{{.FaviconPath}}"/>
+	{{range .Stylesheets}}<link rel="stylesheet" href="{{.}}"/>{{end}}
+    <link rel="icon" href="{{.Favicon}}"/>
   </head>
 `
 	if err := writeTemplate(w, c, t, d, template.FuncMap{}); err != nil {

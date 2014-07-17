@@ -1,0 +1,29 @@
+#top-links {
+  font-size: 14px;
+}
+
+div.content span.pb-caption, figcaption {
+  font-size: 13px;
+}
+div.content blockquote {
+  background-color: #dbdbd7;
+  -webkit-margin-start: 20px;
+  -webkit-margin-end: 20px;
+  padding: 2px 1em;
+  border-radius: 16px;
+}
+div.content a.skip-to-text-link,  /* NYT "Continue reading the main story" links */
+div.content div.socialStrip {     /* nationaljournal.com */
+  display: none;
+}
+div.content img {
+  max-width: 100%;
+}
+div.content a:visited {
+  color: #505030;
+}
+
+@media amzn-mobi {
+  #top-links { display: none; }
+  #end-paragraph { display: none; }
+}

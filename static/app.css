@@ -1,0 +1,52 @@
+div.list-entry {
+  margin-bottom: 20px;
+}
+div.list-entry div.title {
+  font-weight: bold;
+  font-size: 20px;
+}
+div.list-entry a {
+  color: black;
+  text-decoration: none;
+}
+div.list-entry a:hover {
+  text-decoration: underline;
+}
+div.list-entry div.orig a {
+  color: #a05030;
+}
+div.list-entry div.details {
+  font-size: 12px;
+}
+div.list-entry div.details span.time {
+  color: #808070;
+}
+
+span.bookmarklets-label {
+  font-size: 14px;
+  margin-right: 8px;
+}
+div.bookmarklet {
+  display: inline-block;
+  padding: 0 4px;
+  font-size: 12px;
+  border: 1px solid #aaa;
+  border-radius: 6px;
+  background-color: #ddd;
+  margin-right: 8px;
+  font-family: "Arial", sans;
+}
+div.bookmarklet a {
+  text-decoration: none;
+  color: #333;
+}
+
+#add-url {
+  width: 300px;
+}
+
+@media only screen and (max-device-width: 480px) {
+  div.list-entry div.title {
+    font-size: 18px;
+  }
+}

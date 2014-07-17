@@ -33,6 +33,10 @@ func NewHandler(cfg Config, p *Processor, d *Database) Handler {
 	}
 }
 
+func (h Handler) getStylesheets() []string {
+	return []string{h.cfg.GetPath(staticUrlPath, commonCssFile), h.cfg.GetPath(staticUrlPath, appCssFile)}
+}
+
 func (h Handler) getAddToken() string {
 	return getSha1String(h.cfg.Username + "|" + h.cfg.Password)
 }
@@ -97,7 +101,7 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeHeader(w, h.cfg, "Add", "", "")
+	writeHeader(w, h.cfg, h.getStylesheets(), "Add", "", "")
 	h.serveTemplate(w, `
   <body>
     <form method="post">
@@ -199,7 +203,7 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	writeHeader(w, h.cfg, "aread", "", "")
+	writeHeader(w, h.cfg, h.getStylesheets(), "aread", "", "")
 	h.serveTemplate(w, `
 <!DOCTYPE html>
   <body>
@@ -241,7 +245,7 @@ func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeHeader(w, h.cfg, "Auth", "", "")
+	writeHeader(w, h.cfg, h.getStylesheets(), "Auth", "", "")
 	h.serveTemplate(w, `
   <body>
     <form method="post">
