@@ -1,8 +1,8 @@
-#top-links {
+#top-links, #end-paragraph {
   font-size: 14px;
 }
 
-div.content span.pb-caption, figcaption {
+div.content span.pb-caption, div.content figcaption {
   font-size: 13px;
 }
 div.content blockquote {
@@ -12,8 +12,12 @@ div.content blockquote {
   padding: 2px 1em;
   border-radius: 16px;
 }
-div.content a.skip-to-text-link,  /* NYT "Continue reading the main story" links */
-div.content div.socialStrip {     /* nationaljournal.com */
+/* NYT "Continue reading the main story" links */
+div.content a.skip-to-text-link {
+  display: none;
+}
+/* nationaljournal.com */
+div.content div.socialStrip {
   display: none;
 }
 div.content img {
@@ -21,9 +25,4 @@ div.content img {
 }
 div.content a:visited {
   color: #505030;
-}
-
-@media amzn-mobi {
-  #top-links { display: none; }
-  #end-paragraph { display: none; }
 }

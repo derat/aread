@@ -235,9 +235,9 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
   <body>
     <h2 id="title-header">{{.Title}}</h2>
     <p>
-      <a href="{{.Url}}">{{.Host}}</a><br>
-      {{if .Author}}<b>By {{.Author}}</b><br>{{end}}
-      {{if .PubDate}}<em>Published {{.PubDate}}</em><br>{{end}}
+      <a href="{{.Url}}">{{.Host}}</a><br/>
+      {{if .Author}}<b>By {{.Author}}</b><br/>{{end}}
+      {{if .PubDate}}<em>Published {{.PubDate}}</em><br/>{{end}}
       <span id="top-links">
         <a href="#end-paragraph">Jump to bottom</a> -
         <a href="{{.KindlePath}}">Send to Kindle</a>
