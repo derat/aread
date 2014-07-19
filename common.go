@@ -108,7 +108,7 @@ func writeHeader(w io.Writer, c Config, stylesheets []string, title, favicon, au
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     {{if .Author}}<meta content="{{.Author}}" name="author"/>{{end}}
     <title>{{.Title}}</title>
-	{{range .Stylesheets}}<link rel="stylesheet" href="{{.}}"/>{{end}}
+    {{range .Stylesheets}}<link rel="stylesheet" href="{{.}}"/>{{end}}
     <link rel="icon" href="{{.Favicon}}"/>
   </head>
 `

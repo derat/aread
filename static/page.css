@@ -12,17 +12,15 @@ div.content blockquote {
   padding: 2px 1em;
   border-radius: 16px;
 }
-/* NYT "Continue reading the main story" links */
-div.content a.skip-to-text-link {
-  display: none;
-}
-/* nationaljournal.com */
-div.content div.socialStrip {
-  display: none;
-}
 div.content img {
   max-width: 100%;
 }
 div.content a:visited {
   color: #505030;
+}
+
+/* Ugh, nesting these selectors within div.content confuses kindlegen. */
+a.skip-to-text-link,  /* NYT "Continue reading the main story" links */
+div.socialStrip {     /* nationaljournal.com */
+  display: none;
 }

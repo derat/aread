@@ -99,6 +99,10 @@ func (p *Processor) rewriteContent(input string) (content string, imageUrls map[
 		} else if t.Type == html.StartTagToken && t.Data == "iframe" {
 			// Readability puts YouTube videos into iframes but kindlegen doesn't know what to do with them.
 			continue
+		} else if (t.Type == html.StartTagToken || t.Type == html.EndTagToken) && t.Data == "body" {
+			// Why does Readability leave body tags within the content sometimes?
+			// See e.g. http://kirtimukha.com/surfings/Cogitation/wisdom_of_insecurity_by_alan_wat.htm
+			continue
 		}
 		content += t.String()
 	}
