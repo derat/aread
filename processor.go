@@ -88,13 +88,21 @@ func (p *Processor) rewriteContent(input string) (content string, imageUrls map[
 		}
 		t := z.Token()
 		if p.cfg.DownloadImages && t.Type == html.StartTagToken && t.Data == "img" {
+			hasSrc := false
 			for i := range t.Attr {
 				if t.Attr[i].Key == "src" {
 					url := t.Attr[i].Val
 					filename := getLocalImageFilename(url)
 					imageUrls[filename] = url
 					t.Attr[i].Val = filename
+					hasSrc = true
+					break
 				}
+			}
+			if !hasSrc {
+				// kindlegen barfs on empty <img> tags. One appears in
+				// http://online.wsj.com/articles/google-to-collect-data-to-define-healthy-human-1406246214.
+				continue
 			}
 		} else if t.Type == html.StartTagToken && t.Data == "iframe" {
 			// Readability puts YouTube videos into iframes but kindlegen doesn't know what to do with them.
