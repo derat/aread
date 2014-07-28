@@ -21,6 +21,8 @@ div.content a:visited {
 
 /* Ugh, nesting these selectors within div.content confuses kindlegen. */
 a.skip-to-text-link,  /* NYT "Continue reading the main story" links */
-div.socialStrip {     /* nationaljournal.com */
+div.socialStrip,      /* nationaljournal.com */
+span.ticker,          /* WSJ stock info */
+span.t-content {      /* WSJ stock info */
   display: none;
 }
