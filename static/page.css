@@ -1,10 +1,12 @@
-#top-links, #end-paragraph {
-  font-size: 14px;
-}
+/* Everything here is dumbed-down because kindlegen needs
+ * to read it and kindlegen is dumb. */
 
-div.content span.pb-caption, div.content figcaption {
-  font-size: 13px;
-}
+#top-links     { font-size: 14px; }
+#end-paragraph { font-size: 14px; }
+
+div.content span.pb-caption { font-size: 13px; }
+div.content figcaption      { font-size: 13px; }
+
 div.content blockquote {
   background-color: #dbdbd7;
   -webkit-margin-start: 20px;
@@ -19,10 +21,25 @@ div.content a:visited {
   color: #505030;
 }
 
-/* Ugh, nesting these selectors within div.content confuses kindlegen. */
-a.skip-to-text-link,  /* NYT "Continue reading the main story" links */
-div.socialStrip,      /* nationaljournal.com */
-span.ticker,          /* WSJ stock info */
-span.t-content {      /* WSJ stock info */
-  display: none;
-}
+/* Nesting display:none within div.content seems to confuse kindlegen. */
+
+/* bloomberg.com */
+div.caption_preview { display: none; }
+div.image_full_view { display: none; }
+
+/* nationaljournal.com */
+a.facebookSocialStrip { display: none; }
+a.googleSocialStrip   { display: none; }
+a.twitterSocialStrip  { display: none; }
+div.socialStrip       { display: none; }
+span.shareThisStory   { display: none; }
+
+/* npr.org */
+b.hide-caption { display: none; }
+
+/* nytimes.com */
+a.skip-to-text-link { display: none; }
+
+/* wsj.com */
+span.ticker    { display: none; }
+span.t-content { display: none; }
