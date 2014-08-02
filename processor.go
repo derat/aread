@@ -199,7 +199,13 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 	}
 	d.Title = title
 	d.Author, _ = getStringValue(&o, "author")
-	d.PubDate, _ = getStringValue(&o, "date_published")
+
+	rawDate, _ := getStringValue(&o, "date_published")
+	if len(rawDate) > 0 {
+		if parsedDate, err := time.Parse("2006-01-02 15:04:05", rawDate); err == nil {
+			d.PubDate = parsedDate.Format("Monday, January 2, 2006")
+		}
+	}
 
 	// filename -> URL
 	var imageUrls map[string]string
