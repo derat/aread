@@ -1,5 +1,5 @@
 div.list-entry {
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 }
 div.list-entry div.title {
   font-weight: bold;
@@ -16,7 +16,7 @@ div.list-entry div.orig a {
   color: #a05030;
 }
 div.list-entry div.details {
-  font-size: 12px;
+  font-size: 14px;
 }
 div.list-entry div.details span.time {
   color: #808070;

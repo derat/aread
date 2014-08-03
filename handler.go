@@ -193,7 +193,7 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 
 	fm := template.FuncMap{
 		"host": getHost,
-		"time": func(t int64) string { return time.Unix(t, 0).Format("Monday, January 2 at 15:04:05") },
+		"time": func(t int64) string { return time.Unix(t, 0).Format("Monday, Jan 2 at 15:04") },
 		"toggleUrl": func(id, token string) string {
 			listPath := unarchivedListPath
 			if archived {
