@@ -22,6 +22,10 @@ div.content blockquote {
   padding: 2px 1em;
   border-radius: 16px;
 }
+div.content blockquote li {
+  margin-left: 14px;
+}
+
 div.content img {
   max-width: 100%;
 }
