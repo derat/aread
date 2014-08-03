@@ -1,8 +1,16 @@
 /* Everything here is dumbed-down because kindlegen needs
  * to read it and kindlegen is dumb. */
 
+#title-header {
+  -webkit-margin-after: 4px;
+}
+
 #top-links     { font-size: 14px; }
 #end-paragraph { font-size: 14px; }
+
+div.content {
+  margin-top: 10px;
+}
 
 div.content span.pb-caption { font-size: 13px; }
 div.content figcaption      { font-size: 13px; }

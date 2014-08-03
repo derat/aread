@@ -87,7 +87,10 @@ func (p *Processor) rewriteContent(input string) (content string, imageUrls map[
 			return "", nil, z.Err()
 		}
 		t := z.Token()
-		if p.cfg.DownloadImages && t.Type == html.StartTagToken && t.Data == "img" {
+		isStart := t.Type == html.StartTagToken
+		isEnd := t.Type == html.EndTagToken
+
+		if p.cfg.DownloadImages && isStart && t.Data == "img" {
 			hasSrc := false
 			for i := range t.Attr {
 				if t.Attr[i].Key == "src" {
@@ -104,10 +107,13 @@ func (p *Processor) rewriteContent(input string) (content string, imageUrls map[
 				// http://online.wsj.com/articles/google-to-collect-data-to-define-healthy-human-1406246214.
 				continue
 			}
-		} else if t.Type == html.StartTagToken && t.Data == "iframe" {
+		} else if (isStart || isEnd) && t.Data == "h1" {
+			// Downgrade <h1> to <h2>.
+			t.Data = "h2"
+		} else if isStart && t.Data == "iframe" {
 			// Readability puts YouTube videos into iframes but kindlegen doesn't know what to do with them.
 			continue
-		} else if (t.Type == html.StartTagToken || t.Type == html.EndTagToken) && t.Data == "body" {
+		} else if (isStart || isEnd) && t.Data == "body" {
 			// Why does Readability leave body tags within the content sometimes?
 			// See e.g. http://kirtimukha.com/surfings/Cogitation/wisdom_of_insecurity_by_alan_wat.htm
 			continue
@@ -251,16 +257,14 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 	writeHeader(contentFile, p.cfg, cssFiles, title, faviconFilename, d.Author)
 	t := `
   <body>
-    <h2 id="title-header">{{.Title}}</h2>
-    <p>
-      <a href="{{.Url}}">{{.Host}}</a><br/>
-      {{if .Author}}<b>By {{.Author}}</b><br/>{{end}}
-      {{if .PubDate}}<em>Published {{.PubDate}}</em><br/>{{end}}
-      <span id="top-links">
-        <a href="#end-paragraph">Jump to bottom</a> -
-        <a href="{{.KindlePath}}">Send to Kindle</a>
-      </span>
-    </p>
+    <h1 id="title-header">{{.Title}}</h1>
+    <a href="{{.Url}}">{{.Host}}</a><br/>
+    {{if .Author}}<b>By {{.Author}}</b><br/>{{end}}
+    {{if .PubDate}}<em>Published {{.PubDate}}</em><br/>{{end}}
+    <span id="top-links">
+      <a href="#end-paragraph">Jump to bottom</a> -
+      <a href="{{.KindlePath}}">Send to Kindle</a>
+    </span>
     <div class="content">
       {{.Content}}
     </div>
