@@ -28,6 +28,11 @@ div.content img {
 div.content a:visited {
   color: #505030;
 }
+div.content hr {
+  border: 0;
+  height: 1px;
+  background-color: #000;
+}
 
 /* Nesting display:none within div.content seems to confuse kindlegen. */
 
