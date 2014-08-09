@@ -20,6 +20,10 @@ type Config struct {
 	Username         string
 	Password         string
 	DownloadImages   bool
+	MaxImageWidth    int
+	MaxImageHeight   int
+	MaxImageBytes    int64
+	JpegQuality      int
 	DownloadFavicons bool
 	MaxListSize      int
 	Logger           *log.Logger
@@ -29,6 +33,10 @@ func readConfig(configPath string, logger *log.Logger) (cfg Config, err error) {
 	cfg.Logger = logger
 	cfg.PageDir = "/tmp"
 	cfg.DownloadImages = true
+	cfg.MaxImageWidth = 1024
+	cfg.MaxImageHeight = 768
+	cfg.MaxImageBytes = 1 * 1024 * 1024
+	cfg.JpegQuality = 85
 	cfg.MaxListSize = 50
 	f, err := os.Open(configPath)
 	if err != nil {
