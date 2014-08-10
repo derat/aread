@@ -20,6 +20,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -248,6 +249,7 @@ func (p *Processor) downloadImages(urls map[string]string, dir string) (totalByt
 		totalBytes += <-c
 	}
 	close(c)
+	runtime.GC()
 	return totalBytes
 }
 
