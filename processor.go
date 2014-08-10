@@ -118,9 +118,11 @@ func (p *Processor) rewriteContent(input string) (content string, imageUrls map[
 			// Readability puts YouTube videos into iframes but kindlegen doesn't know what to do with them.
 			continue
 		} else if (isStart || isEnd) && t.Data == "noscript" {
-			// Keep kindlegen from complaining about <noscript>, and also tell the tokenizer to interpret nested
-			// elements. This handles the non-JS tags for lazily-loaded images on theverge.com.
-			z.NextIsNotRawText()
+			// Tell the tokenizer to interpret nested elements. This handles the non-JS tags for lazily-loaded images on theverge.com.
+			if isStart {
+				z.NextIsNotRawText()
+			}
+			// Keep kindlegen from complaining about <noscript>.
 			continue
 		} else if (isStart || isEnd) && t.Data == "body" {
 			// Why does Readability leave body tags within the content sometimes?
