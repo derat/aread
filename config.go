@@ -24,6 +24,7 @@ type Config struct {
 	MaxImageHeight   int
 	MaxImageBytes    int64
 	JpegQuality      int
+	MaxImageProcs    int
 	DownloadFavicons bool
 	MaxListSize      int
 	Logger           *log.Logger
@@ -37,6 +38,7 @@ func readConfig(configPath string, logger *log.Logger) (cfg Config, err error) {
 	cfg.MaxImageHeight = 768
 	cfg.MaxImageBytes = 1 * 1024 * 1024
 	cfg.JpegQuality = 85
+	cfg.MaxImageProcs = 3
 	cfg.MaxListSize = 50
 	f, err := os.Open(configPath)
 	if err != nil {

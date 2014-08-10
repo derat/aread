@@ -22,6 +22,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -78,7 +79,16 @@ func getFaviconUrl(origUrl string) (string, error) {
 }
 
 type Processor struct {
-	cfg Config
+	cfg           Config
+	numImageProcs int
+	imageProcCond *sync.Cond
+}
+
+func newProcessor(cfg Config) *Processor {
+	p := &Processor{cfg: cfg}
+	var l sync.Locker
+	p.imageProcCond = sync.NewCond(l)
+	return p
 }
 
 func (p *Processor) rewriteContent(input string) (content string, imageUrls map[string]string, err error) {
@@ -176,6 +186,14 @@ func (p *Processor) resizeImage(origImg image.Image, imgFmt, filename string) er
 }
 
 func (p *Processor) processImage(filename string) error {
+	p.imageProcCond.L.Lock()
+	defer p.imageProcCond.L.Unlock()
+	for p.numImageProcs >= p.cfg.MaxImageProcs {
+		p.imageProcCond.Wait()
+	}
+	p.numImageProcs++
+	defer func() { p.numImageProcs-- }()
+
 	f, err := os.Open(filename)
 	if err != nil {
 		return err
