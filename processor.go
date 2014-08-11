@@ -79,15 +79,15 @@ func getFaviconUrl(origUrl string) (string, error) {
 }
 
 type Processor struct {
-	cfg           Config
-	numImageProcs int
-	imageProcCond *sync.Cond
+	cfg            Config
+	numImageProcs  int
+	imageProcMutex sync.RWMutex
+	imageProcCond  *sync.Cond
 }
 
 func newProcessor(cfg Config) *Processor {
 	p := &Processor{cfg: cfg}
-	var l sync.Locker
-	p.imageProcCond = sync.NewCond(l)
+	p.imageProcCond = sync.NewCond(&p.imageProcMutex)
 	return p
 }
 
@@ -187,12 +187,18 @@ func (p *Processor) resizeImage(origImg image.Image, imgFmt, filename string) er
 
 func (p *Processor) processImage(filename string) error {
 	p.imageProcCond.L.Lock()
-	defer p.imageProcCond.L.Unlock()
 	for p.numImageProcs >= p.cfg.MaxImageProcs {
 		p.imageProcCond.Wait()
 	}
 	p.numImageProcs++
-	defer func() { p.numImageProcs-- }()
+	p.imageProcCond.L.Unlock()
+
+	defer func() {
+		p.imageProcCond.L.Lock()
+		p.numImageProcs--
+		p.imageProcCond.L.Unlock()
+		p.imageProcCond.Signal()
+	}()
 
 	f, err := os.Open(filename)
 	if err != nil {
