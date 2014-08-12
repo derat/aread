@@ -40,9 +40,19 @@ div.content hr {
 
 /* Nesting display:none within div.content seems to confuse kindlegen. */
 
+/* avidbruxist.com */
+div.postauthor { display: none; }
+
 /* bloomberg.com */
 div.caption_preview { display: none; }
 div.image_full_view { display: none; }
+
+/* businessweek.com */
+span.credit { display: none; }
+
+/* modernfarmer.com */
+span.mf-single-article-tags      { display: none; }
+span.mf-single-article-post-tags { display: none; }
 
 /* nationaljournal.com */
 a.facebookSocialStrip { display: none; }
@@ -56,6 +66,7 @@ b.hide-caption { display: none; }
 
 /* nytimes.com */
 a.skip-to-text-link { display: none; }
+div.pullQuote       { display: none; }
 
 /* wsj.com */
 span.ticker    { display: none; }
