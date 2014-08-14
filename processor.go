@@ -78,21 +78,85 @@ func getFaviconUrl(origUrl string) (string, error) {
 	return u.String(), nil
 }
 
+func getAttrValue(token html.Token, name string) string {
+	for i := range token.Attr {
+		if token.Attr[i].Key == name {
+			return token.Attr[i].Val
+		}
+	}
+	return ""
+}
+
 type Processor struct {
 	cfg            Config
 	numImageProcs  int
 	imageProcMutex sync.RWMutex
 	imageProcCond  *sync.Cond
+
+	// element -> class -> true
+	hiddenTokens map[string]map[string]bool
 }
 
 func newProcessor(cfg Config) *Processor {
 	p := &Processor{cfg: cfg}
 	p.imageProcCond = sync.NewCond(&p.imageProcMutex)
+
+	// TODO: Move this into a config file.
+	p.hiddenTokens = make(map[string]map[string]bool)
+	for _, s := range []string{
+		// avidbruxist.com
+		"div.postauthor",
+		// bloomberg.com
+		"div.caption_preview",
+		"div.image_full_view",
+		// businessweek.com
+		"span.credit",
+		// modernfarmer.com
+		"span.mf-single-article-tags",
+		"span.mf-single-article-post-tags",
+		// nationaljournal.com
+		"a.facebookSocialStrip",
+		"a.googleSocialStrip",
+		"a.twitterSocialStrip",
+		"div.socialStrip",
+		"span.shareThisStory",
+		// npr.org
+		"b.hide-caption",
+		// nytimes.com
+		"a.skip-to-text-link",
+		"div.pullQuote",
+		// wsj.com
+		"span.ticker",
+		"span.t-content",
+	} {
+		parts := strings.Split(s, ".")
+		if len(parts) != 2 {
+			p.cfg.Logger.Fatalf("Expected element.class in %q", s)
+		}
+		if _, ok := p.hiddenTokens[parts[0]]; !ok {
+			p.hiddenTokens[parts[0]] = make(map[string]bool)
+		}
+		p.hiddenTokens[parts[0]][parts[1]] = true
+	}
+
 	return p
+}
+
+func (p *Processor) shouldHideToken(t html.Token) bool {
+	if classes, ok := p.hiddenTokens[t.Data]; ok {
+		for _, c := range strings.Fields(getAttrValue(t, "class")) {
+			if _, ok := classes[c]; ok {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (p *Processor) rewriteContent(input string) (content string, imageUrls map[string]string, err error) {
 	imageUrls = make(map[string]string)
+	hideDepth := 0
+
 	z := html.NewTokenizer(strings.NewReader(input))
 	for {
 		if z.Next() == html.ErrorToken {
@@ -104,6 +168,24 @@ func (p *Processor) rewriteContent(input string) (content string, imageUrls map[
 		t := z.Token()
 		isStart := t.Type == html.StartTagToken
 		isEnd := t.Type == html.EndTagToken
+
+		// Check if we're nested within a hidden element.
+		if hideDepth > 0 {
+			if isEnd {
+				hideDepth--
+			} else if isStart {
+				hideDepth++
+			}
+			continue
+		}
+
+		if p.shouldHideToken(t) {
+			p.cfg.Logger.Printf("Hiding <%v> token with class %q\n", t.Data, getAttrValue(t, "class"))
+			if isStart {
+				hideDepth = 1
+			}
+			continue
+		}
 
 		if p.cfg.DownloadImages && isStart && t.Data == "img" {
 			hasSrc := false
