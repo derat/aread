@@ -207,6 +207,9 @@ func (p *Processor) rewriteContent(input string) (content string, imageUrls map[
 		} else if (isStart || isEnd) && t.Data == "h1" {
 			// Downgrade <h1> to <h2>.
 			t.Data = "h2"
+		} else if (isStart || isEnd) && (t.Data == "h4" || t.Data == "h5" || t.Data == "h6") {
+			// <h6> seems to mainly be used by people who don't know what they're doing. Upgrade <h4>, <h5>, and <h6> to <h3>.
+			t.Data = "h3"
 		} else if isStart && t.Data == "iframe" {
 			// Readability puts YouTube videos into iframes but kindlegen doesn't know what to do with them.
 			continue
