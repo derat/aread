@@ -29,6 +29,7 @@ import (
 const (
 	maxLineLength = 80
 	indexFile     = "index.html"
+	kindleFile    = "kindle.html"
 	docFile       = "out.mobi"
 )
 
@@ -232,6 +233,7 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 	queryParams := fmt.Sprintf("?%s=%s&%s=%s&%s=%s", idParam, pi.Id, tokenParam, pi.Token, redirectParam, url.QueryEscape(p.cfg.GetPath()))
 	d := struct {
 		Content     template.HTML
+		ForWeb      bool
 		Url         string
 		Host        string
 		Title       string
@@ -303,42 +305,45 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 		}
 	}
 
-	contentFile, err := os.Create(filepath.Join(dir, "index.html"))
-	if err != nil {
-		return title, err
-	}
-	defer contentFile.Close()
+	for _, filename := range []string{indexFile, kindleFile} {
+		contentFile, err := os.Create(filepath.Join(dir, filename))
+		if err != nil {
+			return title, err
+		}
+		defer contentFile.Close()
 
-	writeHeader(contentFile, p.cfg, cssFiles, title, faviconFilename, d.Author)
-	t := `
+		writeHeader(contentFile, p.cfg, cssFiles, title, faviconFilename, d.Author)
+		t := `
   <body>
     <h1 id="title-header">{{.Title}}</h1>
     <a href="{{.Url}}">{{.Host}}</a><br/>
     {{if .Author}}<b>By {{.Author}}</b><br/>{{end}}
     {{if .PubDate}}<em>Published {{.PubDate}}</em><br/>{{end}}
-    <span id="top-links">
+	{{if .ForWeb}}<span id="top-links">
       <a href="#end-paragraph">Jump to bottom</a> -
       <a href="{{.KindlePath}}">Send to Kindle</a>
-    </span>
+    </span>{{end}}
     <div class="content">
       {{.Content}}
     </div>
-    <p id="end-paragraph">
+	{{if .ForWeb}}<p id="end-paragraph">
       <a href="{{.ArchivePath}}">Toggle archived</a> -
       <a href="#title-header">Jump to top</a> -
       <a href="{{.ListPath}}">Back to list</a>
-    </p>
+    </p>{{end}}
   </body>
 </html>`
-	if err := writeTemplate(contentFile, p.cfg, t, d, template.FuncMap{}); err != nil {
-		return title, fmt.Errorf("Failed to execute page template: %v", err)
+		d.ForWeb = filename != kindleFile
+		if err := writeTemplate(contentFile, p.cfg, t, d, template.FuncMap{}); err != nil {
+			return title, fmt.Errorf("Failed to execute page template: %v", err)
+		}
 	}
 
 	return title, nil
 }
 
 func (p *Processor) buildDoc(dir string) error {
-	c := exec.Command("docker", "run", "-v", dir+":/source", "jagregory/kindlegen", indexFile, "-o", docFile)
+	c := exec.Command("docker", "run", "-v", dir+":/source", "jagregory/kindlegen", kindleFile, "-o", docFile)
 	o, err := c.CombinedOutput()
 	p.cfg.Logger.Printf("kindlegen output:%s", strings.Replace("\n"+string(o), "\n", "\n  ", -1))
 	if err != nil {
