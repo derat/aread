@@ -34,6 +34,15 @@ const (
 	docFile               = "out.mobi"
 )
 
+var supportedImageExtensions map[string]bool = map[string]bool{
+	".bmp":  true,
+	".gif":  true,
+	".jpeg": true,
+	".jpg":  true,
+	".png":  true,
+	".svg":  true,
+}
+
 func getStringValue(object *map[string]interface{}, name string) (string, error) {
 	data, ok := (*object)[name]
 	if !ok {
@@ -60,8 +69,8 @@ func openUrl(url string) (io.ReadCloser, error) {
 
 func getLocalImageFilename(url string) string {
 	// kindlegen seems to be confused by image files without extensions.
-	ext := filepath.Ext(strings.Split(url, "?")[0])
-	if len(ext) == 0 {
+	ext := strings.ToLower(filepath.Ext(strings.Split(url, "?")[0]))
+	if _, ok := supportedImageExtensions[ext]; !ok {
 		ext = defaultImageExtension
 	}
 	return getSha1String(url) + ext
