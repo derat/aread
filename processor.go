@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"code.google.com/p/go.net/html"
 	"code.google.com/p/graphics-go/graphics"
 	"encoding/base64"
 	"encoding/json"
@@ -28,20 +27,10 @@ import (
 )
 
 const (
-	defaultImageExtension = ".jpg"
-	maxLineLength         = 80
-	indexFile             = "index.html"
-	docFile               = "out.mobi"
+	maxLineLength = 80
+	indexFile     = "index.html"
+	docFile       = "out.mobi"
 )
-
-var supportedImageExtensions map[string]bool = map[string]bool{
-	".bmp":  true,
-	".gif":  true,
-	".jpeg": true,
-	".jpg":  true,
-	".png":  true,
-	".svg":  true,
-}
 
 func getStringValue(object *map[string]interface{}, name string) (string, error) {
 	data, ok := (*object)[name]
@@ -67,15 +56,6 @@ func openUrl(url string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-func getLocalImageFilename(url string) string {
-	// kindlegen seems to be confused by image files without extensions.
-	ext := strings.ToLower(filepath.Ext(strings.Split(url, "?")[0]))
-	if _, ok := supportedImageExtensions[ext]; !ok {
-		ext = defaultImageExtension
-	}
-	return getSha1String(url) + ext
-}
-
 func getFaviconUrl(origUrl string) (string, error) {
 	u, err := url.Parse(origUrl)
 	if err != nil {
@@ -87,155 +67,17 @@ func getFaviconUrl(origUrl string) (string, error) {
 	return u.String(), nil
 }
 
-func getAttrValue(token html.Token, name string) string {
-	for i := range token.Attr {
-		if token.Attr[i].Key == name {
-			return token.Attr[i].Val
-		}
-	}
-	return ""
-}
-
 type Processor struct {
 	cfg            Config
 	numImageProcs  int
 	imageProcMutex sync.RWMutex
 	imageProcCond  *sync.Cond
-
-	// element -> class -> true
-	hiddenTokens map[string]map[string]bool
 }
 
 func newProcessor(cfg Config) *Processor {
 	p := &Processor{cfg: cfg}
 	p.imageProcCond = sync.NewCond(&p.imageProcMutex)
-
-	// TODO: Move this into a config file.
-	p.hiddenTokens = make(map[string]map[string]bool)
-	for _, s := range []string{
-		// avidbruxist.com
-		"div.postauthor",
-		// bloomberg.com
-		"div.caption_preview",
-		"div.image_full_view",
-		// businessweek.com
-		"span.credit",
-		// modernfarmer.com
-		"span.mf-single-article-tags",
-		"span.mf-single-article-post-tags",
-		// nationaljournal.com
-		"a.facebookSocialStrip",
-		"a.googleSocialStrip",
-		"a.twitterSocialStrip",
-		"div.socialStrip",
-		"span.shareThisStory",
-		// npr.org
-		"b.hide-caption",
-		// nytimes.com
-		"a.skip-to-text-link",
-		"div.pullQuote",
-		// wsj.com
-		"span.ticker",
-		"span.t-content",
-	} {
-		parts := strings.Split(s, ".")
-		if len(parts) != 2 {
-			p.cfg.Logger.Fatalf("Expected element.class in %q", s)
-		}
-		if _, ok := p.hiddenTokens[parts[0]]; !ok {
-			p.hiddenTokens[parts[0]] = make(map[string]bool)
-		}
-		p.hiddenTokens[parts[0]][parts[1]] = true
-	}
-
 	return p
-}
-
-func (p *Processor) shouldHideToken(t html.Token) bool {
-	if classes, ok := p.hiddenTokens[t.Data]; ok {
-		for _, c := range strings.Fields(getAttrValue(t, "class")) {
-			if _, ok := classes[c]; ok {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func (p *Processor) rewriteContent(input string) (content string, imageUrls map[string]string, err error) {
-	imageUrls = make(map[string]string)
-	hideDepth := 0
-
-	z := html.NewTokenizer(strings.NewReader(input))
-	for {
-		if z.Next() == html.ErrorToken {
-			if z.Err() == io.EOF {
-				return content, imageUrls, nil
-			}
-			return "", nil, z.Err()
-		}
-		t := z.Token()
-		isStart := t.Type == html.StartTagToken
-		isEnd := t.Type == html.EndTagToken
-
-		// Check if we're nested within a hidden element.
-		if hideDepth > 0 {
-			if isEnd {
-				hideDepth--
-			} else if isStart {
-				hideDepth++
-			}
-			continue
-		}
-
-		if p.shouldHideToken(t) {
-			p.cfg.Logger.Printf("Hiding <%v> token with class %q\n", t.Data, getAttrValue(t, "class"))
-			if isStart {
-				hideDepth = 1
-			}
-			continue
-		}
-
-		if p.cfg.DownloadImages && isStart && t.Data == "img" {
-			hasSrc := false
-			for i := range t.Attr {
-				if t.Attr[i].Key == "src" && len(t.Attr[i].Val) > 0 {
-					url := t.Attr[i].Val
-					filename := getLocalImageFilename(url)
-					imageUrls[filename] = url
-					t.Attr[i].Val = filename
-					hasSrc = true
-					break
-				}
-			}
-			if !hasSrc {
-				// kindlegen barfs on empty <img> tags. One appears in
-				// http://online.wsj.com/articles/google-to-collect-data-to-define-healthy-human-1406246214.
-				continue
-			}
-		} else if (isStart || isEnd) && t.Data == "h1" {
-			// Downgrade <h1> to <h2>.
-			t.Data = "h2"
-		} else if (isStart || isEnd) && (t.Data == "h4" || t.Data == "h5" || t.Data == "h6") {
-			// <h6> seems to mainly be used by people who don't know what they're doing. Upgrade <h4>, <h5>, and <h6> to <h3>.
-			t.Data = "h3"
-		} else if isStart && t.Data == "iframe" {
-			// Readability puts YouTube videos into iframes but kindlegen doesn't know what to do with them.
-			continue
-		} else if (isStart || isEnd) && t.Data == "noscript" {
-			// Tell the tokenizer to interpret nested elements. This handles the non-JS tags for lazily-loaded images on theverge.com.
-			if isStart {
-				z.NextIsNotRawText()
-			}
-			// Keep kindlegen from complaining about <noscript>.
-			continue
-		} else if (isStart || isEnd) && t.Data == "body" {
-			// Why does Readability leave body tags within the content sometimes?
-			// See e.g. http://kirtimukha.com/surfings/Cogitation/wisdom_of_insecurity_by_alan_wat.htm
-			continue
-		}
-		content += t.String()
-	}
 }
 
 func (p *Processor) resizeImage(origImg image.Image, imgFmt, filename string) error {
@@ -427,7 +269,8 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 
 	// filename -> URL
 	var imageUrls map[string]string
-	content, imageUrls, err = p.rewriteContent(content)
+	rewriter := newRewriter(p.cfg)
+	content, imageUrls, err = rewriter.rewriteContent(content)
 	if err != nil {
 		return title, fmt.Errorf("Unable to process content: %v", err)
 	}
