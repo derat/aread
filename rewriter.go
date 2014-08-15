@@ -2,10 +2,15 @@ package main
 
 import (
 	"code.google.com/p/go.net/html"
-	//"encoding/json"
+	"encoding/json"
+	"fmt"
 	"io"
+	"os"
 	"strings"
 )
+
+// element -> class -> true
+type hiddenTagsMap map[string]map[string]bool
 
 func getAttrValue(token html.Token, name string) string {
 	for i := range token.Attr {
@@ -18,57 +23,49 @@ func getAttrValue(token html.Token, name string) string {
 
 type Rewriter struct {
 	cfg Config
-
-	// element -> class -> true
-	hiddenTokens map[string]map[string]bool
 }
 
-func newRewriter(cfg Config) *Rewriter {
-	r := &Rewriter{cfg: cfg}
-
-	// TODO: Move this into a config file.
-	r.hiddenTokens = make(map[string]map[string]bool)
-	for _, s := range []string{
-		// avidbruxist.com
-		"div.postauthor",
-		// bloomberg.com
-		"div.caption_preview",
-		"div.image_full_view",
-		// businessweek.com
-		"span.credit",
-		// modernfarmer.com
-		"span.mf-single-article-tags",
-		"span.mf-single-article-post-tags",
-		// nationaljournal.com
-		"a.facebookSocialStrip",
-		"a.googleSocialStrip",
-		"a.twitterSocialStrip",
-		"div.socialStrip",
-		"span.shareThisStory",
-		// npr.org
-		"b.hide-caption",
-		// nytimes.com
-		"a.skip-to-text-link",
-		"div.pullQuote",
-		// wsj.com
-		"span.ticker",
-		"span.t-content",
-	} {
-		parts := strings.Split(s, ".")
-		if len(parts) != 2 {
-			r.cfg.Logger.Fatalf("Expected element.class in %q", s)
-		}
-		if _, ok := r.hiddenTokens[parts[0]]; !ok {
-			r.hiddenTokens[parts[0]] = make(map[string]bool)
-		}
-		r.hiddenTokens[parts[0]][parts[1]] = true
+// readHiddenTagsFile returns a map containing the tags that should be hidden for url.
+func (r *Rewriter) readHiddenTagsFile(url string) (*hiddenTagsMap, error) {
+	tags := make(hiddenTagsMap)
+	if len(r.cfg.HiddenTagsFile) == 0 {
+		return &tags, nil
 	}
 
-	return r
+	// host -> [element.class, element.class, ...]
+	f, err := os.Open(r.cfg.HiddenTagsFile)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	data := make(map[string][]string)
+	d := json.NewDecoder(f)
+	if err = d.Decode(&data); err != nil {
+		return nil, err
+	}
+
+	urlHost := getHost(url)
+	for host, entries := range data {
+		if host != urlHost && !strings.HasSuffix(urlHost, "."+host) {
+			continue
+		}
+
+		for _, entry := range entries {
+			parts := strings.Split(entry, ".")
+			if len(parts) != 2 {
+				return nil, fmt.Errorf("Expected element.class in %q", entry)
+			}
+			if _, ok := tags[parts[0]]; !ok {
+				tags[parts[0]] = make(map[string]bool)
+			}
+			tags[parts[0]][parts[1]] = true
+		}
+	}
+	return &tags, nil
 }
 
-func (r *Rewriter) shouldHideToken(t html.Token) bool {
-	if classes, ok := r.hiddenTokens[t.Data]; ok {
+func (r *Rewriter) shouldHideToken(t html.Token, tags *hiddenTagsMap) bool {
+	if classes, ok := (*tags)[t.Data]; ok {
 		for _, c := range strings.Fields(getAttrValue(t, "class")) {
 			if _, ok := classes[c]; ok {
 				return true
@@ -78,7 +75,12 @@ func (r *Rewriter) shouldHideToken(t html.Token) bool {
 	return false
 }
 
-func (r *Rewriter) rewriteContent(input string) (content string, imageUrls map[string]string, err error) {
+func (r *Rewriter) RewriteContent(input, url string) (content string, imageUrls map[string]string, err error) {
+	hiddenTags, err := r.readHiddenTagsFile(url)
+	if err != nil {
+		return "", nil, err
+	}
+
 	imageUrls = make(map[string]string)
 	hideDepth := 0
 
@@ -104,7 +106,7 @@ func (r *Rewriter) rewriteContent(input string) (content string, imageUrls map[s
 			continue
 		}
 
-		if r.shouldHideToken(t) {
+		if r.shouldHideToken(t, hiddenTags) {
 			r.cfg.Logger.Printf("Hiding <%v> token with class %q\n", t.Data, getAttrValue(t, "class"))
 			if isStart {
 				hideDepth = 1
