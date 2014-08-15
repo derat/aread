@@ -35,7 +35,7 @@ func main() {
 		logger.Fatalf("Unable to read config from %v: %v\n", err)
 	}
 
-	p := newProcessor(cfg)
+	p := Processor{cfg}
 
 	if daemon {
 		db, err := NewDatabase(cfg.Database)
@@ -43,7 +43,7 @@ func main() {
 			logger.Fatalln(err)
 		}
 		logger.Println("Accepting connections")
-		fcgi.Serve(nil, NewHandler(cfg, p, db))
+		fcgi.Serve(nil, NewHandler(cfg, &p, db))
 	} else {
 		for i := range flag.Args() {
 			url := flag.Args()[i]

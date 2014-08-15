@@ -2,14 +2,10 @@ package main
 
 import (
 	"bytes"
-	"code.google.com/p/graphics-go/graphics"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"image"
-	"image/jpeg"
-	"image/png"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -21,7 +17,6 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -69,111 +64,11 @@ func getFaviconUrl(origUrl string) (string, error) {
 }
 
 type Processor struct {
-	cfg            Config
-	numImageProcs  int
-	imageProcMutex sync.RWMutex
-	imageProcCond  *sync.Cond
-}
-
-func newProcessor(cfg Config) *Processor {
-	p := &Processor{cfg: cfg}
-	p.imageProcCond = sync.NewCond(&p.imageProcMutex)
-	return p
-}
-
-func (p *Processor) resizeImage(origImg image.Image, imgFmt, filename string) error {
-	origWidth := origImg.Bounds().Max.X - origImg.Bounds().Min.X
-	origHeight := origImg.Bounds().Max.Y - origImg.Bounds().Min.Y
-	if origWidth <= p.cfg.MaxImageWidth && origHeight <= p.cfg.MaxImageHeight {
-		return nil
-	}
-
-	widthRatio := float64(origWidth) / float64(p.cfg.MaxImageWidth)
-	heightRatio := float64(origHeight) / float64(p.cfg.MaxImageHeight)
-	var newWidth, newHeight int
-	if widthRatio > heightRatio {
-		newWidth = p.cfg.MaxImageWidth
-		newHeight = int(float64(origHeight)/widthRatio + 0.5)
-	} else {
-		newWidth = int(float64(origWidth)/heightRatio + 0.5)
-		newHeight = p.cfg.MaxImageHeight
-	}
-
-	p.cfg.Logger.Printf("Scaling %v from %vx%v to %vx%v\n", filename, origWidth, origHeight, newWidth, newHeight)
-	newImg := image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{newWidth, newHeight}})
-	if err := graphics.Scale(newImg, origImg); err != nil {
-		return err
-	}
-
-	f, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	switch imgFmt {
-	case "png":
-		err = png.Encode(f, newImg)
-	case "jpeg":
-		err = jpeg.Encode(f, newImg, &jpeg.Options{Quality: p.cfg.JpegQuality})
-	default:
-		p.cfg.Logger.Fatalf("Unhandled image format %v for %v", imgFmt, filename)
-	}
-	return err
-}
-
-func (p *Processor) processImage(filename string) error {
-	p.imageProcCond.L.Lock()
-	for p.numImageProcs >= p.cfg.MaxImageProcs {
-		p.imageProcCond.Wait()
-	}
-	p.numImageProcs++
-	p.imageProcCond.L.Unlock()
-
-	defer func() {
-		p.imageProcCond.L.Lock()
-		p.numImageProcs--
-		p.imageProcCond.L.Unlock()
-		p.imageProcCond.Signal()
-	}()
-
-	f, err := os.Open(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	origInfo, err := f.Stat()
-	if err != nil {
-		return err
-	}
-
-	img, imgFmt, err := image.Decode(f)
-	if err != nil {
-		p.cfg.Logger.Printf("Unable to decode %v\n", filename)
-	} else {
-		if err = p.resizeImage(img, imgFmt, filename); err != nil {
-			return err
-		}
-	}
-
-	newInfo, err := f.Stat()
-	if err != nil {
-		return err
-	}
-	if origInfo.Size() != newInfo.Size() {
-		p.cfg.Logger.Printf("Resized %v from %v bytes to %v bytes\n", filename, origInfo.Size(), newInfo.Size())
-	}
-	if newInfo.Size() > p.cfg.MaxImageBytes {
-		p.cfg.Logger.Printf("Deleting %v-byte file %v\n", newInfo.Size(), filename)
-		if err = os.Remove(filename); err != nil {
-			return err
-		}
-	}
-	return nil
+	cfg Config
 }
 
 func (p *Processor) downloadImages(urls map[string]string, dir string) (totalBytes int64) {
+	ic := newImageCleaner(p.cfg)
 	c := make(chan int64)
 	for filename, url := range urls {
 		go func(filename, url string) {
@@ -200,7 +95,7 @@ func (p *Processor) downloadImages(urls map[string]string, dir string) (totalByt
 				p.cfg.Logger.Printf("Unable to write image %v to %v: %v\n", url, path, err)
 				return
 			}
-			if err = p.processImage(path); err != nil {
+			if err = ic.ProcessImage(path); err != nil {
 				p.cfg.Logger.Printf("Unable to process image %v: %v\n", path, err)
 			}
 		}(filename, url)
