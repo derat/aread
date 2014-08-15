@@ -22,10 +22,12 @@ import (
 )
 
 const (
-	maxLineLength = 80
-	indexFile     = "index.html"
-	kindleFile    = "kindle.html"
-	docFile       = "out.mobi"
+	maxLineLength    = 80
+	indexFile        = "index.html"
+	kindleFile       = "kindle.html"
+	docFile          = "out.mobi"
+	maxPageRetries   = 1
+	httpRetryDelayMs = 1000
 )
 
 func getStringValue(object *map[string]interface{}, name string) (string, error) {
@@ -38,18 +40,6 @@ func getStringValue(object *map[string]interface{}, name string) (string, error)
 		return "", fmt.Errorf("Property \"%v\" is not a string", name)
 	}
 	return s, nil
-}
-
-func openUrl(url string) (io.ReadCloser, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("Fetching %s failed: %v", url, err)
-	}
-	if resp.StatusCode != 200 {
-		resp.Body.Close()
-		return nil, fmt.Errorf("Fetching %s returned %d", url, resp.StatusCode)
-	}
-	return resp.Body, nil
 }
 
 func getFaviconUrl(origUrl string) (string, error) {
@@ -67,6 +57,29 @@ type Processor struct {
 	cfg Config
 }
 
+func (p *Processor) openUrl(url string, maxRetries int) (io.ReadCloser, error) {
+	for i := 0; ; i++ {
+		var transientError bool
+		resp, err := http.Get(url)
+		if err != nil {
+			transientError = true
+		} else if resp.StatusCode != 200 {
+			resp.Body.Close()
+			err = fmt.Errorf("Received status code %d", resp.StatusCode)
+			transientError = resp.StatusCode >= 500 && resp.StatusCode < 600
+		} else {
+			return resp.Body, nil
+		}
+
+		if transientError && i < maxRetries {
+			p.cfg.Logger.Printf("Got transient error for %v: %v\n", url, err)
+			time.Sleep(time.Duration(httpRetryDelayMs) * time.Millisecond)
+		} else {
+			return nil, fmt.Errorf("Unable to get %v: %v", url, err)
+		}
+	}
+}
+
 func (p *Processor) downloadImages(urls map[string]string, dir string) (totalBytes int64) {
 	ic := newImageCleaner(p.cfg)
 	c := make(chan int64)
@@ -75,7 +88,7 @@ func (p *Processor) downloadImages(urls map[string]string, dir string) (totalByt
 			var bytes int64 = 0
 			defer func() { c <- bytes }()
 
-			body, err := openUrl(url)
+			body, err := p.openUrl(url, 0)
 			if err != nil {
 				p.cfg.Logger.Printf("Failed to download image %v: %v\n", url, err)
 				return
@@ -111,7 +124,7 @@ func (p *Processor) downloadImages(urls map[string]string, dir string) (totalByt
 
 func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err error) {
 	apiUrl := fmt.Sprintf("https://www.readability.com/api/content/v1/parser?url=%s&token=%s", url.QueryEscape(pi.OriginalUrl), p.cfg.ApiToken)
-	body, err := openUrl(apiUrl)
+	body, err := p.openUrl(apiUrl, maxPageRetries)
 	if err != nil {
 		return title, err
 	}
