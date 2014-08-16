@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	// Handle Comodo certs: http://bridge.grumpy-troll.org/2014/05/golang-tls-comodo/
+	_ "crypto/sha512"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
