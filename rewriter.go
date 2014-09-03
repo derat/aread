@@ -12,6 +12,26 @@ import (
 // element -> class -> true
 type hiddenTagsMap map[string]map[string]bool
 
+// Stolen from go.net/html's render.go.
+var voidElements = map[string]bool{
+	"area":    true,
+	"base":    true,
+	"br":      true,
+	"col":     true,
+	"command": true,
+	"embed":   true,
+	"hr":      true,
+	"img":     true,
+	"input":   true,
+	"keygen":  true,
+	"link":    true,
+	"meta":    true,
+	"param":   true,
+	"source":  true,
+	"track":   true,
+	"wbr":     true,
+}
+
 func getAttrValue(token html.Token, name string) string {
 	for i := range token.Attr {
 		if token.Attr[i].Key == name {
@@ -95,12 +115,13 @@ func (r *Rewriter) RewriteContent(input, url string) (content string, imageUrls 
 		t := z.Token()
 		isStart := t.Type == html.StartTagToken
 		isEnd := t.Type == html.EndTagToken
+		isVoid, _ := voidElements[t.Data]
 
 		// Check if we're nested within a hidden element.
 		if hideDepth > 0 {
 			if isEnd {
 				hideDepth--
-			} else if isStart {
+			} else if isStart && !isVoid {
 				hideDepth++
 			}
 			continue
