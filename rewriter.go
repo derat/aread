@@ -135,16 +135,21 @@ func (r *Rewriter) RewriteContent(input, url string) (content string, imageUrls 
 			continue
 		}
 
-		if r.cfg.DownloadImages && isStart && t.Data == "img" {
+		extraText := ""
+
+		if isStart && t.Data == "img" {
 			hasSrc := false
-			for i := range t.Attr {
-				if t.Attr[i].Key == "src" && len(t.Attr[i].Val) > 0 {
-					url := t.Attr[i].Val
-					filename := getLocalImageFilename(url)
-					imageUrls[filename] = url
-					t.Attr[i].Val = filename
+			for _, attr := range t.Attr {
+				if attr.Key == "src" && len(attr.Val) > 0 {
 					hasSrc = true
-					break
+					if r.cfg.DownloadImages {
+						url := attr.Val
+						filename := getLocalImageFilename(url)
+						imageUrls[filename] = url
+						attr.Val = filename
+					}
+				} else if attr.Key == "title" && len(attr.Val) > 0 {
+					extraText = "\n<div class=\"img-title\">" + html.EscapeString(attr.Val) + "</div>\n"
 				}
 			}
 			if !hasSrc {
@@ -173,7 +178,8 @@ func (r *Rewriter) RewriteContent(input, url string) (content string, imageUrls 
 			// See e.g. http://kirtimukha.com/surfings/Cogitation/wisdom_of_insecurity_by_alan_wat.htm
 			continue
 		}
-		content += t.String()
+
+		content += t.String() + extraText
 	}
 	return content, imageUrls, nil
 }

@@ -14,6 +14,7 @@ div.content {
 
 div.content span.pb-caption { font-size: 13px; }
 div.content figcaption      { font-size: 13px; }
+div.content div.img-title   { font-size: 13px; }
 
 div.content blockquote {
   background-color: #dbdbd7;
