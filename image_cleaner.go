@@ -27,12 +27,13 @@ func (c *ImageCleaner) updateImage(origImg image.Image, imgFmt, filename string)
 	origWidth := origImg.Bounds().Max.X - origImg.Bounds().Min.X
 	origHeight := origImg.Bounds().Max.Y - origImg.Bounds().Min.Y
 	needsScale := origWidth > c.cfg.MaxImageWidth || origHeight > c.cfg.MaxImageHeight
-	needsOpaque := origImg.ColorModel() == color.RGBAModel && !origImg.(*image.RGBA).Opaque()
+	needsOpaque := (origImg.ColorModel() == color.RGBAModel && !origImg.(*image.RGBA).Opaque()) ||
+		(origImg.ColorModel() == color.NRGBAModel && !origImg.(*image.NRGBA).Opaque())
 	if !needsScale && !needsOpaque {
 		return nil
 	}
 
-	var newImg *image.RGBA
+	var newImg *image.NRGBA
 
 	if needsScale {
 		widthRatio := float64(origWidth) / float64(c.cfg.MaxImageWidth)
@@ -47,26 +48,32 @@ func (c *ImageCleaner) updateImage(origImg image.Image, imgFmt, filename string)
 		}
 
 		c.cfg.Logger.Printf("Scaling %v from %vx%v to %vx%v\n", filename, origWidth, origHeight, newWidth, newHeight)
-		newImg = image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{newWidth, newHeight}})
+		newImg = image.NewNRGBA(image.Rectangle{image.Point{0, 0}, image.Point{newWidth, newHeight}})
 		if err := graphics.Scale(newImg, origImg); err != nil {
 			return err
 		}
 	}
 
+	// 2nd-gen Kindles can't handle partially-transparent images. Shocking.
 	if needsOpaque {
-		var srcImg *image.RGBA
+		var srcImg image.Image
 		if newImg != nil {
 			srcImg = newImg
 		} else {
-			srcImg = origImg.(*image.RGBA)
-			newImg = image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{origWidth, origHeight}})
+			srcImg = origImg
+			newImg = image.NewNRGBA(image.Rectangle{image.Point{0, 0}, image.Point{origWidth, origHeight}})
 		}
 		c.cfg.Logger.Printf("Making %v opaque\n", filename)
-		for y := newImg.Bounds().Min.Y; y < newImg.Bounds().Min.Y; y++ {
+		for y := newImg.Bounds().Min.Y; y < newImg.Bounds().Max.Y; y++ {
 			for x := newImg.Bounds().Min.X; x < newImg.Bounds().Max.X; x++ {
-				cl := srcImg.At(x, y).(color.RGBA)
-				cl.A = 255
-				newImg.SetRGBA(x, y, cl)
+				cl := color.NRGBAModel.Convert(srcImg.At(x, y)).(color.NRGBA)
+				if cl.A == 0 {
+					cl.R = 255
+					cl.G = 255
+					cl.B = 255
+					cl.A = 255
+				}
+				newImg.SetNRGBA(x, y, cl)
 			}
 		}
 	}
