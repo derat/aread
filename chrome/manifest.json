@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "aread",
-  "version": "6",
+  "version": "7",
   "permissions": [
     "activeTab",
     "storage"
@@ -18,5 +18,17 @@
     },
     "default_title": "aread",
     "default_popup": "popup.html"
+  },
+  "background": {
+    "persistent": false,
+    "scripts": ["common.js", "background.js"]
+  },
+  "commands": {
+    "send-to-kindle": {
+      "description": "Send to Kindle",
+      "suggested_key" : {
+        "default": "Ctrl+Shift+K"
+      }
+    }
   }
 }
