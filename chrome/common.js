@@ -8,8 +8,6 @@ function goToReadingList() {
 }
 
 function addPage(kindle, cb) {
-  if (!cb)
-    cb = function() {};
   chrome.storage.sync.get(['url', 'token'], function(items) {
     if (!items.url) {
       alert("Please set a URL on the options page.");
@@ -20,7 +18,11 @@ function addPage(kindle, cb) {
         kindle: kindle
       };
       chrome.tabs.executeScript({ code: 'var aread = ' + JSON.stringify(vars) }, function() {
-        chrome.tabs.executeScript({ file: 'add.js' }, cb);
+        chrome.tabs.executeScript({ file: 'add.js' }, function() {
+          console.log('running callback');
+          if (cb)
+            cb();
+        });
       });
     }
   });
