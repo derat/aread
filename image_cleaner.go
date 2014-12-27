@@ -3,6 +3,7 @@ package main
 import (
 	"code.google.com/p/graphics-go/graphics"
 	"image"
+	"image/color"
 	"image/jpeg"
 	"image/png"
 	"os"
@@ -22,28 +23,52 @@ func newImageCleaner(cfg Config) *ImageCleaner {
 	return c
 }
 
-func (c *ImageCleaner) resizeImage(origImg image.Image, imgFmt, filename string) error {
+func (c *ImageCleaner) updateImage(origImg image.Image, imgFmt, filename string) error {
 	origWidth := origImg.Bounds().Max.X - origImg.Bounds().Min.X
 	origHeight := origImg.Bounds().Max.Y - origImg.Bounds().Min.Y
-	if origWidth <= c.cfg.MaxImageWidth && origHeight <= c.cfg.MaxImageHeight {
+	needsScale := origWidth > c.cfg.MaxImageWidth || origHeight > c.cfg.MaxImageHeight
+	needsOpaque := origImg.ColorModel() == color.RGBAModel && !origImg.(*image.RGBA).Opaque()
+	if !needsScale && !needsOpaque {
 		return nil
 	}
 
-	widthRatio := float64(origWidth) / float64(c.cfg.MaxImageWidth)
-	heightRatio := float64(origHeight) / float64(c.cfg.MaxImageHeight)
-	var newWidth, newHeight int
-	if widthRatio > heightRatio {
-		newWidth = c.cfg.MaxImageWidth
-		newHeight = int(float64(origHeight)/widthRatio + 0.5)
-	} else {
-		newWidth = int(float64(origWidth)/heightRatio + 0.5)
-		newHeight = c.cfg.MaxImageHeight
+	var newImg *image.RGBA
+
+	if needsScale {
+		widthRatio := float64(origWidth) / float64(c.cfg.MaxImageWidth)
+		heightRatio := float64(origHeight) / float64(c.cfg.MaxImageHeight)
+		var newWidth, newHeight int
+		if widthRatio > heightRatio {
+			newWidth = c.cfg.MaxImageWidth
+			newHeight = int(float64(origHeight)/widthRatio + 0.5)
+		} else {
+			newWidth = int(float64(origWidth)/heightRatio + 0.5)
+			newHeight = c.cfg.MaxImageHeight
+		}
+
+		c.cfg.Logger.Printf("Scaling %v from %vx%v to %vx%v\n", filename, origWidth, origHeight, newWidth, newHeight)
+		newImg = image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{newWidth, newHeight}})
+		if err := graphics.Scale(newImg, origImg); err != nil {
+			return err
+		}
 	}
 
-	c.cfg.Logger.Printf("Scaling %v from %vx%v to %vx%v\n", filename, origWidth, origHeight, newWidth, newHeight)
-	newImg := image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{newWidth, newHeight}})
-	if err := graphics.Scale(newImg, origImg); err != nil {
-		return err
+	if needsOpaque {
+		var srcImg *image.RGBA
+		if newImg != nil {
+			srcImg = newImg
+		} else {
+			srcImg = origImg.(*image.RGBA)
+			newImg = image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{origWidth, origHeight}})
+		}
+		c.cfg.Logger.Printf("Making %v opaque\n", filename)
+		for y := newImg.Bounds().Min.Y; y < newImg.Bounds().Min.Y; y++ {
+			for x := newImg.Bounds().Min.X; x < newImg.Bounds().Max.X; x++ {
+				cl := srcImg.At(x, y).(color.RGBA)
+				cl.A = 255
+				newImg.SetRGBA(x, y, cl)
+			}
+		}
 	}
 
 	f, err := os.Create(filename)
@@ -93,7 +118,7 @@ func (c *ImageCleaner) ProcessImage(filename string) error {
 	if err != nil {
 		c.cfg.Logger.Printf("Unable to decode %v\n", filename)
 	} else {
-		if err = c.resizeImage(img, imgFmt, filename); err != nil {
+		if err = c.updateImage(img, imgFmt, filename); err != nil {
 			return err
 		}
 	}
