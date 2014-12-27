@@ -139,7 +139,8 @@ func (r *Rewriter) RewriteContent(input, url string) (content string, imageUrls 
 
 		if isStart && t.Data == "img" {
 			hasSrc := false
-			for _, attr := range t.Attr {
+			for i := range t.Attr {
+				attr := &t.Attr[i]
 				if attr.Key == "src" && len(attr.Val) > 0 {
 					hasSrc = true
 					if r.cfg.DownloadImages {
