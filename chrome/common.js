@@ -4,21 +4,24 @@ function goToReadingList() {
       alert("Please set a URL on the options page.");
     else
       chrome.tabs.create({url: items.url});
-    window.close();
   });
 }
 
-function addPage(kindle) {
+function addPage(kindle, cb) {
+  if (!cb)
+    cb = function() {};
   chrome.storage.sync.get(['url', 'token'], function(items) {
     if (!items.url) {
       alert("Please set a URL on the options page.");
     } else {
-      var tokenParam = items.token ? '&t=' + encodeURIComponent(items.token) : '';
-      var kindleParam = kindle ? '&k=1' : ''
-      chrome.tabs.executeScript({
-        code: 'window.location.href="' + items.url + '/add?u="+encodeURIComponent(document.URL)+"' + tokenParam + kindleParam + '"'
+      var vars = {
+        url: items.url,
+        token: items.token,
+        kindle: kindle
+      };
+      chrome.tabs.executeScript({ code: 'var aread = ' + JSON.stringify(vars) }, function() {
+        chrome.tabs.executeScript({ file: 'add.js' }, cb);
       });
     }
-    window.close();
   });
 }
