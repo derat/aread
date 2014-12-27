@@ -52,7 +52,7 @@ func (h Handler) makeBookmarklet(kindle bool) string {
 
 func (h Handler) serveTemplate(w http.ResponseWriter, t string, d interface{}, fm template.FuncMap) {
 	if err := writeTemplate(w, h.cfg, t, d, fm); err != nil {
-		http.Error(w, "Template error", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Template error: %v", err), http.StatusInternalServerError)
 	}
 }
 
@@ -81,18 +81,18 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 		pi, err := h.processor.ProcessUrl(u)
 		if err != nil {
 			h.cfg.Logger.Println(err)
-			http.Error(w, "Failed to process page", http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Failed to process page: %v", err), http.StatusInternalServerError)
 			return
 		}
 		if err = h.db.AddPage(pi); err != nil {
 			h.cfg.Logger.Println(err)
-			http.Error(w, "Failed to add to database", http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Failed to add to database: %v", err), http.StatusInternalServerError)
 			return
 		}
 		if r.FormValue(addKindleParam) == "1" {
 			if err = h.processor.SendToKindle(pi.Id); err != nil {
 				h.cfg.Logger.Println(err)
-				http.Error(w, "Failed to send to Kindle", http.StatusInternalServerError)
+				http.Error(w, fmt.Sprintf("Failed to send to Kindle: %v", err), http.StatusInternalServerError)
 				return
 			}
 		}
@@ -118,7 +118,7 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 func (h Handler) handleArchive(w http.ResponseWriter, r *http.Request) {
 	pi, err := h.db.GetPage(r.FormValue(idParam))
 	if err != nil {
-		http.Error(w, "Unable to find page", http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Unable to find page: %v", err), http.StatusBadRequest)
 		return
 	}
 	if len(pi.Token) > 0 && r.FormValue(tokenParam) != pi.Token {
@@ -128,7 +128,7 @@ func (h Handler) handleArchive(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.db.TogglePageArchived(pi.Id); err != nil {
 		h.cfg.Logger.Println(err)
-		http.Error(w, "Failed to toggle archived state", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to toggle archived state: %v", err), http.StatusInternalServerError)
 		return
 	}
 	http.Redirect(w, r, r.FormValue(redirectParam), http.StatusFound)
@@ -137,7 +137,7 @@ func (h Handler) handleArchive(w http.ResponseWriter, r *http.Request) {
 func (h Handler) handleKindle(w http.ResponseWriter, r *http.Request) {
 	pi, err := h.db.GetPage(r.FormValue(idParam))
 	if err != nil {
-		http.Error(w, "Unable to find page", http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Unable to find page: %v", err), http.StatusBadRequest)
 		return
 	}
 	if len(pi.Token) > 0 && r.FormValue(tokenParam) != pi.Token {
@@ -147,7 +147,7 @@ func (h Handler) handleKindle(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.processor.SendToKindle(pi.Id); err != nil {
 		h.cfg.Logger.Println(err)
-		http.Error(w, "Failed to send to Kindle", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to send to Kindle: %v", err), http.StatusInternalServerError)
 		return
 	}
 	http.Redirect(w, r, r.FormValue(redirectParam), http.StatusFound)
@@ -187,7 +187,7 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	var err error
 	if d.Pages, err = h.db.GetAllPages(archived, h.cfg.MaxListSize); err != nil {
 		h.cfg.Logger.Printf("Unable to get pages: %v\n", err)
-		http.Error(w, "Unable to get page list", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Unable to get page list: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -232,7 +232,7 @@ func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 			id := getSha1String(h.cfg.Username + "|" + h.cfg.Password + "|" + strconv.FormatInt(time.Now().UnixNano(), 10))
 			if err := h.db.AddSession(id, r.RemoteAddr); err != nil {
 				h.cfg.Logger.Printf("Unable to insert session: %v\n", err)
-				http.Error(w, "Unable to insert session", http.StatusInternalServerError)
+				http.Error(w, fmt.Sprintf("Unable to insert session: %v", err), http.StatusInternalServerError)
 				return
 			}
 			h.cfg.Logger.Printf("Successful authentication attempt from %v\n", r.RemoteAddr)

@@ -70,7 +70,7 @@ func (d *Database) GetPage(id string) (pi PageInfo, err error) {
 	}
 	defer rows.Close()
 	if !rows.Next() {
-		return pi, fmt.Errorf("Page not found")
+		return pi, fmt.Errorf("Page not found in database")
 	}
 	if err = rows.Scan(&pi.Id, &pi.OriginalUrl, &pi.Title, &pi.TimeAdded, &pi.Token); err != nil {
 		return pi, err
