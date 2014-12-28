@@ -10,12 +10,14 @@ function goToReadingList(cb) {
   });
 }
 
-function addPage(kindle, cb) {
+// |link| is optional; if null, the current URL will be used.
+function addPage(link, kindle, cb) {
   chrome.storage.sync.get(['url', 'token'], function(items) {
     if (!items.url) {
       alert("Please set a URL on the options page.");
     } else {
       var vars = {
+        link: link,
         url: items.url,
         token: items.token,
         kindle: kindle

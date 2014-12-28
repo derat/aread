@@ -1,26 +1,34 @@
 var page = null;
 var newTab = false;
 
-// Awfulness courtesy of
-// http://stackoverflow.com/questions/736513/how-do-i-parse-a-url-into-hostname-and-path-in-javascript
-var a = document.createElement("a");
-a.href = document.URL;
-var hostname = a.hostname;
-
-if (hostname == 'go-read.appspot.com' || hostname == 'www.goread.io') {
-  var links = document.getElementsByTagName('a');
-  for (var i = 0; i < links.length; i++) {
-    var link = links[i];
-    if (link.getAttribute('ng-bind') == 's.Title') {
-      page = link.getAttribute('href');
-      newTab = true;
-      break;
-    }
-  }
-  if (page == null)
-    alert("Page link not not found.");
+if (aread.link != null) {
+  page = aread.link;
+  newTab = true;
+  console.log('Using passed-in page: ' + page);
 } else {
-  page = document.URL;
+  // Awfulness courtesy of
+  // http://stackoverflow.com/questions/736513/how-do-i-parse-a-url-into-hostname-and-path-in-javascript
+  var a = document.createElement("a");
+  a.href = document.URL;
+  var hostname = a.hostname;
+
+  if (hostname == 'go-read.appspot.com' || hostname == 'www.goread.io') {
+    var links = document.getElementsByTagName('a');
+    for (var i = 0; i < links.length; i++) {
+      var link = links[i];
+      if (link.getAttribute('ng-bind') == 's.Title') {
+        page = link.getAttribute('href');
+        newTab = true;
+        console.log('Using selected item: ' + page);
+        break;
+      }
+    }
+    if (page == null)
+      alert("Page link not not found.");
+  } else {
+    page = document.URL;
+    console.log('Using current page: ' + page);
+  }
 }
 
 if (page != null) {
