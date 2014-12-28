@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "aread",
-  "version": "8",
+  "version": "9",
   "permissions": [
     "activeTab",
     "storage"

@@ -1,9 +1,12 @@
-function goToReadingList() {
+function goToReadingList(cb) {
   chrome.storage.sync.get('url', function(items) {
-    if (!items.url)
+    if (!items.url) {
       alert("Please set a URL on the options page.");
-    else
+    } else {
       chrome.tabs.create({url: items.url});
+      if (cb)
+        cb();
+    }
   });
 }
 
