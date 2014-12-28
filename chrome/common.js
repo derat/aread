@@ -22,7 +22,6 @@ function addPage(kindle, cb) {
       };
       chrome.tabs.executeScript({ code: 'var aread = ' + JSON.stringify(vars) }, function() {
         chrome.tabs.executeScript({ file: 'add.js' }, function() {
-          console.log('running callback');
           if (cb)
             cb();
         });
