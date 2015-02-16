@@ -1,9 +1,13 @@
 div.list-entry {
   margin-bottom: 10px;
 }
-div.list-entry div.title {
+div.list-entry div.title a {
   font-weight: bold;
   font-size: 20px;
+  display: block;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
 }
 div.list-entry a {
   color: black;
