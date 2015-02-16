@@ -53,6 +53,7 @@ func (r *Rewriter) readHiddenTagsFile(url string) (*hiddenTagsMap, error) {
 	}
 
 	// host -> [element.class, element.class, ...]
+	// e.g. "div.*" can be used to match all divs.
 	f, err := os.Open(r.cfg.HiddenTagsFile)
 	if err != nil {
 		return nil, err
@@ -86,6 +87,9 @@ func (r *Rewriter) readHiddenTagsFile(url string) (*hiddenTagsMap, error) {
 
 func (r *Rewriter) shouldHideToken(t html.Token, tags *hiddenTagsMap) bool {
 	if classes, ok := (*tags)[t.Data]; ok {
+		if _, ok := classes["*"]; ok {
+			return true
+		}
 		for _, c := range strings.Fields(getAttrValue(t, "class")) {
 			if _, ok := classes[c]; ok {
 				return true
