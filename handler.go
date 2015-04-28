@@ -107,7 +107,10 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
     <form method="post">
       <table>
         <input type="hidden" name="t" value={{.Token}}>
-        <tr><td>URL</td><td><input type="text" name="u" id="add-url"></td></tr>
+        <tr>
+		  <td>URL</td>
+		  <td><input type="text" autofocus name="u" id="add-url"></td>
+		</tr>
         <tr><td><input type="submit" value="Add"></td></tr>
 	  </table>
     </form>
