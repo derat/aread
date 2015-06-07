@@ -315,7 +315,8 @@ Content-Transfer-Encoding: base64
 X-Attachment-Id: f_ial5f1io0
 
 {{.EncodedAttachment}}
---e89a8f642be05fb0290517da66fa--`, "\n", "\r\n", -1)
+--e89a8f642be05fb0290517da66fa--
+`, "\n", "\r\n", -1)
 	d := struct {
 		Sender            string
 		Recipient         string
