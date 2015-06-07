@@ -10,8 +10,10 @@ import (
 	"html/template"
 	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"net/http"
 	"net/smtp"
+	"net/textproto"
 	"net/url"
 	"os"
 	"os/exec"
@@ -292,44 +294,41 @@ func (p *Processor) sendMail(docPath string) error {
 	}
 	defer w.Close()
 
-	// This is totally wrong and ought to be using the mime/multipart package.
-	// Amazon's email gateway is picky, though, so just use the format that
-	// Gmail uses since it seems to work. Go strips carriage returns from raw
-	// strings, unfortunately.
-	t := strings.Replace(`From: {{.Sender}}
-To: {{.Recipient}}
-Subject: kindle document
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary=e89a8f642be05fb0290517da66fa
-
---e89a8f642be05fb0290517da66fa
-Content-Type: text/plain; charset=UTF-8
-
-
-
---e89a8f642be05fb0290517da66fa
-Content-Type: application/x-mobipocket-ebook; name="{{.Filename}}"
-Content-Disposition: attachment; filename="{{.Filename}}"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_ial5f1io0
-
-{{.EncodedAttachment}}
---e89a8f642be05fb0290517da66fa--
-`, "\n", "\r\n", -1)
-	d := struct {
-		Sender            string
-		Recipient         string
-		Filename          string
-		EncodedAttachment string
-	}{
-		Sender:            p.cfg.Sender,
-		Recipient:         p.cfg.Recipient,
-		Filename:          filepath.Base(docPath),
-		EncodedAttachment: buf.String(),
+	mw := multipart.NewWriter(w)
+	if _, err = w.Write([]byte(fmt.Sprintf(
+		"From: %s\r\n"+
+			"To: %s\r\n"+
+			"Subject: kindle document\r\n"+
+			"MIME-Version: 1.0\r\n"+
+			"Content-Type: multipart/mixed; boundary=%s\r\n"+
+			"\r\n",
+		p.cfg.Sender, p.cfg.Recipient, mw.Boundary()))); err != nil {
+		return fmt.Errorf("Failed to write header: %v", err)
 	}
-	if err = writeTemplate(w, p.cfg, t, d, template.FuncMap{}); err != nil {
+
+	thead := make(textproto.MIMEHeader)
+	thead.Add("Content-Type", "text/plain; charset=UTF-8")
+	if pw, err := mw.CreatePart(thead); err != nil {
+		return fmt.Errorf("Failed to create text part: %v", err)
+	} else if _, err = pw.Write([]byte("Nothing to see here.")); err != nil {
+		return fmt.Errorf("Failed to write text part: %v", err)
+	}
+
+	ahead := make(textproto.MIMEHeader)
+	ahead.Add("Content-Type", "application/x-mobipocket-ebook; name=\""+filepath.Base(docPath)+"\"")
+	ahead.Add("Content-Disposition", "attachment; filename=\""+filepath.Base(docPath)+"\"")
+	ahead.Add("Content-Transfer-Encoding", "base64")
+	ahead.Add("X-Attachment-Id", "f_ial5f1io0")
+	if pw, err := mw.CreatePart(ahead); err != nil {
+		return fmt.Errorf("Failed to create attachment part: %v", err)
+	} else if _, err = pw.Write(buf.Bytes()); err != nil {
+		return fmt.Errorf("Failed to write attachment part: %v", err)
+	}
+
+	if err = mw.Close(); err != nil {
 		return err
 	}
+
 	p.cfg.Logger.Printf("Sent message with %v-byte attachment to %v\n", buf.Len(), p.cfg.Recipient)
 	return nil
 }
