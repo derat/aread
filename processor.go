@@ -309,8 +309,8 @@ Content-Type: text/plain; charset=UTF-8
 
 
 --e89a8f642be05fb0290517da66fa
-Content-Type: application/x-mobipocket-ebook; name="{{.Filename}"
-Content-Disposition: attachment; filename="{{.Filename}"
+Content-Type: application/x-mobipocket-ebook; name="{{.Filename}}"
+Content-Disposition: attachment; filename="{{.Filename}}"
 Content-Transfer-Encoding: base64
 X-Attachment-Id: f_ial5f1io0
 
