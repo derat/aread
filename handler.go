@@ -208,7 +208,6 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 
 	writeHeader(w, h.cfg, h.getStylesheets(), "aread", "", "")
 	h.serveTemplate(w, `
-<!DOCTYPE html>
   <body>
     <p><a href="{{.ToggleListPath}}">{{.ToggleListString}}</a> - <a href="{{.AddPath}}">Add URL</a></p>
     {{ range .Pages }}

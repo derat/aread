@@ -113,8 +113,7 @@ func writeHeader(w io.Writer, c Config, stylesheets []string, title, favicon, au
 		d.Favicon = favicon
 	}
 
-	t := `
-<!DOCTYPE html>
+	t := `<!DOCTYPE html>
 <html>
   <head>
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>

@@ -296,8 +296,7 @@ func (p *Processor) sendMail(docPath string) error {
 	// Amazon's email gateway is picky, though, so just use the format that
 	// Gmail uses since it seems to work. Go strips carriage returns from raw
 	// strings, unfortunately.
-	t := strings.Replace(`
-From: {{.Sender}}
+	t := strings.Replace(`From: {{.Sender}}
 To: {{.Recipient}}
 Subject: kindle document
 MIME-Version: 1.0
