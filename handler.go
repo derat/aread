@@ -108,11 +108,11 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
       <table>
         <input type="hidden" name="t" value={{.Token}}>
         <tr>
-		  <td>URL</td>
-		  <td><input type="text" autofocus name="u" id="add-url"></td>
-		</tr>
+          <td>URL</td>
+          <td><input type="text" autofocus name="u" id="add-url"></td>
+        </tr>
         <tr><td><input type="submit" value="Add"></td></tr>
-	  </table>
+      </table>
     </form>
   </body>
 </html>`, struct{ Token string }{Token: h.getAddToken()}, template.FuncMap{})
