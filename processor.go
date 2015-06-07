@@ -314,11 +314,12 @@ func (p *Processor) sendMail(docPath string) error {
 		return fmt.Errorf("Failed to write text part: %v", err)
 	}
 
+	basename := filepath.Base(docPath)
 	ahead := make(textproto.MIMEHeader)
-	ahead.Add("Content-Type", "application/x-mobipocket-ebook; name=\""+filepath.Base(docPath)+"\"")
-	ahead.Add("Content-Disposition", "attachment; filename=\""+filepath.Base(docPath)+"\"")
+	ahead.Add("Content-Type", "application/x-mobipocket-ebook; name=\""+basename+"\"")
+	ahead.Add("Content-Disposition", "attachment; filename=\""+basename+"\"")
 	ahead.Add("Content-Transfer-Encoding", "base64")
-	ahead.Add("X-Attachment-Id", "f_ial5f1io0")
+	ahead.Add("X-Attachment-Id", basename)
 	if pw, err := mw.CreatePart(ahead); err != nil {
 		return fmt.Errorf("Failed to create attachment part: %v", err)
 	} else if _, err = pw.Write(buf.Bytes()); err != nil {
