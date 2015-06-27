@@ -9,6 +9,9 @@ import (
 	"strings"
 )
 
+// id -> true
+type hiddenIdsMap map[string]bool
+
 // element -> class -> true
 type hiddenTagsMap map[string]map[string]bool
 
@@ -45,24 +48,27 @@ type Rewriter struct {
 	cfg Config
 }
 
-// readHiddenTagsFile returns a map containing the tags that should be hidden for url.
-func (r *Rewriter) readHiddenTagsFile(url string) (*hiddenTagsMap, error) {
+// readHiddenTagsFile returns maps containing the tags that should be hidden for url.
+func (r *Rewriter) readHiddenTagsFile(url string) (*hiddenIdsMap, *hiddenTagsMap, error) {
+	ids := make(hiddenIdsMap)
 	tags := make(hiddenTagsMap)
 	if len(r.cfg.HiddenTagsFile) == 0 {
-		return &tags, nil
+		return &ids, &tags, nil
 	}
 
 	// host -> [element.class, element.class, ...]
-	// e.g. "div.*" can be used to match all divs.
+	// "div.class" matches all divs with class "class".
+	// "div.*" or just "div" matches all divs.
+	// "#id" matches the element with ID "id".
 	f, err := os.Open(r.cfg.HiddenTagsFile)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer f.Close()
 	data := make(map[string][]string)
 	d := json.NewDecoder(f)
 	if err = d.Decode(&data); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	urlHost := getHost(url)
@@ -73,19 +79,31 @@ func (r *Rewriter) readHiddenTagsFile(url string) (*hiddenTagsMap, error) {
 
 		for _, entry := range entries {
 			parts := strings.Split(entry, ".")
-			if len(parts) != 2 {
-				return nil, fmt.Errorf("Expected element.class in %q", entry)
+			if len(parts) == 1 && len(parts[0]) > 1 && parts[0][0] == '#' {
+				ids[parts[0][1:]] = true
+			} else if len(parts) == 1 || len(parts) == 2 {
+				element := parts[0]
+				class := "*"
+				if len(parts) == 2 {
+					class = parts[1]
+				}
+				if _, ok := tags[element]; !ok {
+					tags[element] = make(map[string]bool)
+				}
+				tags[element][class] = true
+			} else {
+				return nil, nil, fmt.Errorf("Expected #id, element, or element.class in %q", entry)
 			}
-			if _, ok := tags[parts[0]]; !ok {
-				tags[parts[0]] = make(map[string]bool)
-			}
-			tags[parts[0]][parts[1]] = true
 		}
 	}
-	return &tags, nil
+	return &ids, &tags, nil
 }
 
-func (r *Rewriter) shouldHideToken(t html.Token, tags *hiddenTagsMap) bool {
+func (r *Rewriter) shouldHideToken(t html.Token, ids *hiddenIdsMap, tags *hiddenTagsMap) bool {
+	id := getAttrValue(t, "id")
+	if len(id) > 0 && (*ids)[id] {
+		return true
+	}
 	if classes, ok := (*tags)[t.Data]; ok {
 		if _, ok := classes["*"]; ok {
 			return true
@@ -100,7 +118,7 @@ func (r *Rewriter) shouldHideToken(t html.Token, tags *hiddenTagsMap) bool {
 }
 
 func (r *Rewriter) RewriteContent(input, url string) (content string, imageUrls map[string]string, err error) {
-	hiddenTags, err := r.readHiddenTagsFile(url)
+	hiddenIds, hiddenTags, err := r.readHiddenTagsFile(url)
 	if err != nil {
 		return "", nil, err
 	}
@@ -131,8 +149,8 @@ func (r *Rewriter) RewriteContent(input, url string) (content string, imageUrls 
 			continue
 		}
 
-		if r.shouldHideToken(t, hiddenTags) {
-			r.cfg.Logger.Printf("Hiding <%v> token with class %q\n", t.Data, getAttrValue(t, "class"))
+		if r.shouldHideToken(t, hiddenIds, hiddenTags) {
+			r.cfg.Logger.Printf("Hiding <%v> token with id %q and class(es) %q\n", t.Data, getAttrValue(t, "id"), getAttrValue(t, "class"))
 			if isStart {
 				hideDepth = 1
 			}

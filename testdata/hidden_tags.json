@@ -1,0 +1,8 @@
+{
+  "example.com": [
+    "blockquote.*",
+    "div.aside",
+    "figure",
+    "#navbar"
+  ]
+}
