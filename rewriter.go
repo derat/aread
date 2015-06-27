@@ -2,10 +2,8 @@ package main
 
 import (
 	"code.google.com/p/go.net/html"
-	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 )
 
@@ -60,14 +58,8 @@ func (r *Rewriter) readHiddenTagsFile(url string) (*hiddenIdsMap, *hiddenTagsMap
 	// "div.class" matches all divs with class "class".
 	// "div.*" or just "div" matches all divs.
 	// "#id" matches the element with ID "id".
-	f, err := os.Open(r.cfg.HiddenTagsFile)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer f.Close()
 	data := make(map[string][]string)
-	d := json.NewDecoder(f)
-	if err = d.Decode(&data); err != nil {
+	if err := readJsonFile(r.cfg.HiddenTagsFile, &data); err != nil {
 		return nil, nil, err
 	}
 

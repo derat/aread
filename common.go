@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha1"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
@@ -137,4 +138,17 @@ func getLocalImageFilename(url string) string {
 		ext = defaultImageExtension
 	}
 	return getSha1String(url) + ext
+}
+
+func readJsonFile(path string, out interface{}) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	d := json.NewDecoder(f)
+	if err = d.Decode(&out); err != nil {
+		return err
+	}
+	return nil
 }

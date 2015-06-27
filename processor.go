@@ -61,6 +61,32 @@ type Processor struct {
 	cfg Config
 }
 
+func (p *Processor) rewriteUrl(origUrl string) (newUrl string, err error) {
+	if len(p.cfg.UrlPatternsFile) == 0 {
+		return origUrl, nil
+	}
+
+	pats := make([][]string, 0)
+	if err = readJsonFile(p.cfg.UrlPatternsFile, &pats); err != nil {
+		return
+	}
+	newUrl = origUrl
+	for i, entry := range pats {
+		if len(entry) != 2 {
+			return "", fmt.Errorf("Entry %v had %v element(s); should be [regex, repl]", i, len(entry))
+		}
+		re, err := regexp.Compile(entry[0])
+		if err != nil {
+			return "", fmt.Errorf("Failed to compile regex %q: %v", entry[0], err)
+		}
+		newUrl = re.ReplaceAllString(newUrl, entry[1])
+	}
+	if newUrl != origUrl {
+		p.cfg.Logger.Printf("Rewrote %v to %v\n", origUrl, newUrl)
+	}
+	return
+}
+
 func (p *Processor) openUrl(url string, maxRetries int) (io.ReadCloser, error) {
 	for i := 0; ; i++ {
 		var transientError bool
@@ -335,6 +361,10 @@ func (p *Processor) sendMail(docPath string) error {
 }
 
 func (p *Processor) ProcessUrl(contentUrl string) (pi PageInfo, err error) {
+	if contentUrl, err = p.rewriteUrl(contentUrl); err != nil {
+		return pi, fmt.Errorf("Failed rewriting URL: %v", err)
+	}
+
 	pi.Id = getSha1String(contentUrl)
 	pi.OriginalUrl = contentUrl
 	pi.TimeAdded = time.Now().Unix()

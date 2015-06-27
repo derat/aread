@@ -13,6 +13,7 @@ type Config struct {
 	BaseUrl          string
 	StaticDir        string
 	PageDir          string
+	UrlPatternsFile  string
 	HiddenTagsFile   string
 	Database         string
 	MailServer       string

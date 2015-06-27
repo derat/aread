@@ -15,7 +15,7 @@ const (
 	outputPath     = "testdata/output.html"
 )
 
-func TestFoo(t *testing.T) {
+func TestBasic(t *testing.T) {
 	cfg := Config{
 		HiddenTagsFile: hiddenTagsPath,
 		Logger:         log.New(os.Stderr, "", log.LstdFlags),
