@@ -73,11 +73,11 @@ func (p *Processor) rewriteUrl(origUrl string) (newUrl string, err error) {
 	newUrl = origUrl
 	for i, entry := range pats {
 		if len(entry) != 2 {
-			return "", fmt.Errorf("Entry %v had %v element(s); should be [regex, repl]", i, len(entry))
+			return "", fmt.Errorf("Entry %v had %v element(s); should be [regexp, repl]", i, len(entry))
 		}
 		re, err := regexp.Compile(entry[0])
 		if err != nil {
-			return "", fmt.Errorf("Failed to compile regex %q: %v", entry[0], err)
+			return "", fmt.Errorf("Failed to compile regexp %q: %v", entry[0], err)
 		}
 		newUrl = re.ReplaceAllString(newUrl, entry[1])
 	}
@@ -152,6 +152,34 @@ func (p *Processor) downloadImages(urls map[string]string, dir string) (totalByt
 	return totalBytes
 }
 
+func (p *Processor) checkContent(pi PageInfo, content string) error {
+	if len(p.cfg.BadContentFile) == 0 {
+		return nil
+	}
+
+	pats := make([][]string, 0)
+	if err := readJsonFile(p.cfg.BadContentFile, &pats); err != nil {
+		return err
+	}
+	for i, entry := range pats {
+		if len(entry) != 2 {
+			return fmt.Errorf("Entry %v had %v element(s); should be [url_regexp, content_regexp]", i, len(entry))
+		}
+		urlRegexp, err := regexp.Compile(entry[0])
+		if err != nil {
+			return fmt.Errorf("Failed to compile URL regexp %q: %v", entry[0], err)
+		}
+		contentRegexp, err := regexp.Compile(entry[1])
+		if err != nil {
+			return fmt.Errorf("Failed to compile content regexp %q: %v", entry[1], err)
+		}
+		if urlRegexp.MatchString(pi.OriginalUrl) && contentRegexp.MatchString(content) {
+			return fmt.Errorf("Matched %q", entry[1])
+		}
+	}
+	return nil
+}
+
 func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err error) {
 	apiUrl := fmt.Sprintf("https://www.readability.com/api/content/v1/parser?url=%s&token=%s", url.QueryEscape(pi.OriginalUrl), p.cfg.ApiToken)
 	body, err := p.openUrl(apiUrl, maxPageRetries)
@@ -191,6 +219,9 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 	content, err := getStringValue(&o, "content")
 	if err != nil {
 		return title, fmt.Errorf("Unable to get content from %v: %v", apiUrl, err)
+	}
+	if err = p.checkContent(pi, content); err != nil {
+		return title, fmt.Errorf("Bad content: %v", err)
 	}
 
 	title, _ = getStringValue(&o, "title")

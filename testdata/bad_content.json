@@ -1,0 +1,4 @@
+[
+  ["[./]example\\.com/", "<h1>Go away\\.</h1>"],
+  ["[./]example\\.net/", "<h1>Really go away\\.</h1>"]
+]

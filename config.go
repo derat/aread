@@ -14,6 +14,7 @@ type Config struct {
 	StaticDir        string
 	PageDir          string
 	UrlPatternsFile  string
+	BadContentFile   string
 	HiddenTagsFile   string
 	Database         string
 	MailServer       string

@@ -1,4 +1,4 @@
 [
-  ["^(https?://)m.example.com/", "${1}example.com/"],
-  ["([./]example.com/.*)\\?.*$", "$1"]
+  ["^(https?://)m\\.example\\.com/", "${1}example.com/"],
+  ["([./]example\\.com/.*)\\?.*$", "$1"]
 ]
