@@ -173,6 +173,7 @@ func (p *Processor) checkContent(pi PageInfo, content string) error {
 		if err != nil {
 			return fmt.Errorf("Failed to compile content regexp %q: %v", entry[1], err)
 		}
+		p.cfg.Logger.Printf("url=%v urlpat=%q (%v) contentpat=%q (%v)", pi.OriginalUrl, entry[0], urlRegexp.MatchString(pi.OriginalUrl), entry[1], contentRegexp.MatchString(content))
 		if urlRegexp.MatchString(pi.OriginalUrl) && contentRegexp.MatchString(content) {
 			return fmt.Errorf("Matched %q", entry[1])
 		}
