@@ -81,7 +81,7 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 		pi, err := h.processor.ProcessUrl(u)
 		if err != nil {
 			h.cfg.Logger.Println(err)
-			http.Error(w, fmt.Sprintf("Failed to process page: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Failed to process %v: %v", u, err), http.StatusInternalServerError)
 			return
 		}
 		if err = h.db.AddPage(pi); err != nil {
