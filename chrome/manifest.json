@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "aread",
-  "version": "10",
+  "version": "11",
   "permissions": [
     "activeTab",
     "contextMenus",

@@ -16,10 +16,14 @@ if (aread.link != null) {
     var links = document.getElementsByTagName('a');
     for (var i = 0; i < links.length; i++) {
       var link = links[i];
-      if (link.getAttribute('ng-bind') == 's.Title') {
+      if (link.getAttribute('ng-bind') == 's.Title' && page == null) {
         page = link.getAttribute('href');
         newTab = true;
         console.log('Using selected item: ' + page);
+      } else if (link.getAttribute('class') == 'page2rssins') {
+        page = link.getAttribute('href');
+        newTab = true;
+        console.log('Using page2rss URL from selected item: ' + page);
         break;
       }
     }
