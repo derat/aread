@@ -220,6 +220,10 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 	if err != nil {
 		return title, fmt.Errorf("Unable to get content from %v: %v", apiUrl, err)
 	}
+	if p.cfg.Verbose {
+		p.cfg.Logger.Printf("Content:\n%v", content)
+	}
+
 	if err = p.checkContent(pi, content); err != nil {
 		return title, fmt.Errorf("Bad content: %v", err)
 	}

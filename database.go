@@ -11,7 +11,7 @@ type Database struct {
 	db *sql.DB
 }
 
-func NewDatabase(path string) (*Database, error) {
+func newDatabase(path string) (*Database, error) {
 	db, err := sql.Open("sqlite3", path)
 	if err != nil {
 		return nil, err

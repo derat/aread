@@ -23,7 +23,7 @@ type Handler struct {
 	pageHandler   http.Handler
 }
 
-func NewHandler(cfg Config, p *Processor, d *Database) Handler {
+func newHandler(cfg Config, p *Processor, d *Database) Handler {
 	return Handler{
 		cfg:           cfg,
 		processor:     p,

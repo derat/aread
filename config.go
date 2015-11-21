@@ -30,6 +30,7 @@ type Config struct {
 	MaxImageProcs    int
 	DownloadFavicons bool
 	MaxListSize      int
+	Verbose          bool
 	Logger           *log.Logger
 }
 

@@ -32,18 +32,22 @@ func main() {
 
 	cfg, err := readConfig(configPath, logger)
 	if err != nil {
-		logger.Fatalf("Unable to read config from %v: %v\n", err)
+		logger.Fatalf("Unable to read config from %v: %v\n", configPath, err)
+	}
+
+	if !daemon {
+		cfg.Verbose = true
 	}
 
 	p := Processor{cfg}
 
 	if daemon {
-		db, err := NewDatabase(cfg.Database)
+		db, err := newDatabase(cfg.Database)
 		if err != nil {
 			logger.Fatalln(err)
 		}
 		logger.Println("Accepting connections")
-		fcgi.Serve(nil, NewHandler(cfg, &p, db))
+		fcgi.Serve(nil, newHandler(cfg, &p, db))
 	} else {
 		for i := range flag.Args() {
 			url := flag.Args()[i]
