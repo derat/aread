@@ -4,6 +4,7 @@ import (
 	"code.google.com/p/go.net/html"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 )
 
@@ -65,7 +66,7 @@ func (r *Rewriter) readHiddenTagsFile(url string) (*hiddenIdsMap, *hiddenTagsMap
 
 	urlHost := getHost(url)
 	for host, entries := range data {
-		if host != urlHost && !strings.HasSuffix(urlHost, "."+host) {
+		if host != "*" && host != urlHost && !strings.HasSuffix(urlHost, "."+host) {
 			continue
 		}
 
@@ -107,6 +108,21 @@ func (r *Rewriter) shouldHideToken(t html.Token, ids *hiddenIdsMap, tags *hidden
 		}
 	}
 	return false
+}
+
+// fixImageUrl fixes up <img> elements that Readability decided to break because
+// they had srcset attributes. Specifically, an <img> element with both src and
+// srcset attributes seems to end up with just a src attribute containing a
+// URL-escaped copy of the srcset value. That makes absolutely no sense.
+func (r *Rewriter) fixImageUrl(url string) string {
+	if m, _ := regexp.MatchString("%20\\d+[wx],", url); !m {
+		return url
+	}
+	// Just chop off the first space and everything after it.
+	index := strings.Index(url, "%20")
+	newUrl := url[0:index]
+	r.cfg.Logger.Printf("Rewrote broken-looking image URL %q to %q\n", url, newUrl)
+	return newUrl
 }
 
 func (r *Rewriter) RewriteContent(input, url string) (content string, imageUrls map[string]string, err error) {
@@ -158,7 +174,7 @@ func (r *Rewriter) RewriteContent(input, url string) (content string, imageUrls 
 				if attr.Key == "src" && len(attr.Val) > 0 {
 					hasSrc = true
 					if r.cfg.DownloadImages {
-						url := attr.Val
+						url := r.fixImageUrl(attr.Val)
 						filename := getLocalImageFilename(url)
 						imageUrls[filename] = url
 						attr.Val = filename
