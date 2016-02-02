@@ -115,7 +115,7 @@ func (r *Rewriter) shouldHideToken(t html.Token, ids *hiddenIdsMap, tags *hidden
 // srcset attributes seems to end up with just a src attribute containing a
 // URL-escaped copy of the srcset value. That makes absolutely no sense.
 func (r *Rewriter) fixImageUrl(url string) string {
-	if m, _ := regexp.MatchString("%20\\d+[wx],", url); !m {
+	if m, _ := regexp.MatchString("%20\\d+[wx](,|$)", url); !m {
 		return url
 	}
 	// Just chop off the first space and everything after it.

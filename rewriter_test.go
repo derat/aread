@@ -40,7 +40,7 @@ func TestBasic(t *testing.T) {
 	if output != string(expectedOutput) {
 		t.Errorf("actual output differed from expected output\n\nexpected:\n-----\n%v\n-----\nactual:\n-----\n%v\n-----\n", string(expectedOutput), output)
 	}
-	if len(imageUrls) != 2 {
+	if len(imageUrls) != 3 {
 		t.Errorf("got %v image(s) instead of 2", len(imageUrls))
 	}
 	// TODO: Actually check the image mapping.
