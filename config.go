@@ -9,29 +9,33 @@ import (
 )
 
 type Config struct {
-	ApiToken         string
-	BaseUrl          string
-	StaticDir        string
-	PageDir          string
-	UrlPatternsFile  string
-	BadContentFile   string
-	HiddenTagsFile   string
-	Database         string
-	MailServer       string
-	Recipient        string
-	Sender           string
-	Username         string
-	Password         string
-	DownloadImages   bool
-	MaxImageWidth    int
-	MaxImageHeight   int
-	MaxImageBytes    int64
-	JpegQuality      int
-	MaxImageProcs    int
-	DownloadFavicons bool
-	MaxListSize      int
-	Verbose          bool
-	Logger           *log.Logger
+	ApiToken          string
+	BaseUrl           string
+	StaticDir         string
+	PageDir           string
+	UrlPatternsFile   string
+	BadContentFile    string
+	HiddenTagsFile    string
+	Database          string
+	MailServer        string
+	Recipient         string
+	Sender            string
+	Username          string
+	Password          string
+	FriendBaseUrl     string
+	FriendRemoteToken string
+	FriendLocalToken  string
+	FriendTitlePrefix string
+	DownloadImages    bool
+	MaxImageWidth     int
+	MaxImageHeight    int
+	MaxImageBytes     int64
+	JpegQuality       int
+	MaxImageProcs     int
+	DownloadFavicons  bool
+	MaxListSize       int
+	Verbose           bool
+	Logger            *log.Logger
 }
 
 func readConfig(configPath string, logger *log.Logger) (cfg Config, err error) {

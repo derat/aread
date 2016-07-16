@@ -232,6 +232,10 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 	if len(title) == 0 {
 		title = pi.OriginalUrl
 	}
+	if pi.FromFriend {
+		title = p.cfg.FriendTitlePrefix + title
+	}
+
 	d.Title = title
 	d.Author, _ = getStringValue(&o, "author")
 
@@ -395,7 +399,7 @@ func (p *Processor) sendMail(docPath string) error {
 	return nil
 }
 
-func (p *Processor) ProcessUrl(contentUrl string) (pi PageInfo, err error) {
+func (p *Processor) ProcessUrl(contentUrl string, fromFriend bool) (pi PageInfo, err error) {
 	if contentUrl, err = p.rewriteUrl(contentUrl); err != nil {
 		return pi, fmt.Errorf("Failed rewriting URL: %v", err)
 	}
@@ -404,6 +408,7 @@ func (p *Processor) ProcessUrl(contentUrl string) (pi PageInfo, err error) {
 	pi.OriginalUrl = contentUrl
 	pi.TimeAdded = time.Now().Unix()
 	pi.Token = getSha1String(fmt.Sprintf("%s|%s|%s", p.cfg.Username, p.cfg.Password, contentUrl))
+	pi.FromFriend = fromFriend
 
 	outDir := filepath.Join(p.cfg.PageDir, pi.Id)
 	p.cfg.Logger.Printf("Processing %v in %v\n", contentUrl, outDir)

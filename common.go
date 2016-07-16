@@ -48,6 +48,7 @@ type PageInfo struct {
 	Title       string
 	TimeAdded   int64 // time_t
 	Token       string
+	FromFriend  bool
 }
 
 func getHost(urlStr string) string {

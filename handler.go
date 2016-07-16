@@ -41,9 +41,9 @@ func (h Handler) getAddToken() string {
 	return getSha1String(h.cfg.Username + "|" + h.cfg.Password)
 }
 
-func (h Handler) makeBookmarklet(kindle bool) string {
+func (h Handler) makeBookmarklet(baseUrl string, token string, kindle bool) string {
 	getCurUrl := "encodeURIComponent(document.URL)"
-	addUrl := path.Join(h.cfg.BaseUrl, addUrlPath) + "?" + addUrlParam + "=\"+" + getCurUrl + "+\"&" + tokenParam + "=" + h.getAddToken()
+	addUrl := path.Join(baseUrl, addUrlPath) + "?" + addUrlParam + "=\"+" + getCurUrl + "+\"&" + tokenParam + "=" + token
 	if kindle {
 		addUrl += "&" + addKindleParam + "=1"
 	}
@@ -72,13 +72,15 @@ func (h Handler) isAuthenticated(r *http.Request) bool {
 func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 	u := r.FormValue(addUrlParam)
 	if len(u) > 0 {
-		if r.FormValue(tokenParam) != h.getAddToken() {
+		token := r.FormValue(tokenParam)
+		isFriend := len(h.cfg.FriendLocalToken) > 0 && token == h.cfg.FriendLocalToken
+		if !isFriend && token != h.getAddToken() {
 			h.cfg.Logger.Printf("Bad or missing token in add request from %v\n", r.RemoteAddr)
 			http.Error(w, "Invalid token", http.StatusForbidden)
 			return
 		}
 
-		pi, err := h.processor.ProcessUrl(u)
+		pi, err := h.processor.ProcessUrl(u, isFriend)
 		if err != nil {
 			h.cfg.Logger.Println(err)
 			http.Error(w, fmt.Sprintf("Failed to process %v: %v", u, err), http.StatusInternalServerError)
@@ -167,11 +169,12 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		AddPath               string
 		ReadBookmarkletHref   template.HTMLAttr
 		KindleBookmarkletHref template.HTMLAttr
+		FriendBookmarkletHref template.HTMLAttr
 	}{
 		PagesPath:             h.cfg.GetPath(pagesUrlPath),
 		AddPath:               h.cfg.GetPath(addUrlPath),
-		ReadBookmarkletHref:   template.HTMLAttr("href=" + h.makeBookmarklet(false)),
-		KindleBookmarkletHref: template.HTMLAttr("href=" + h.makeBookmarklet(true)),
+		ReadBookmarkletHref:   template.HTMLAttr("href=" + h.makeBookmarklet(h.cfg.BaseUrl, h.getAddToken(), false)),
+		KindleBookmarkletHref: template.HTMLAttr("href=" + h.makeBookmarklet(h.cfg.BaseUrl, h.getAddToken(), true)),
 	}
 
 	archived := r.FormValue("a") == "1"
@@ -185,6 +188,10 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		d.TogglePageString = "Archive"
 		d.ToggleListString = "View archived pages"
 		d.ToggleListPath = archivedListPath
+	}
+
+	if len(h.cfg.FriendBaseUrl) > 0 && len(h.cfg.FriendRemoteToken) > 0 {
+		d.FriendBookmarkletHref = template.HTMLAttr("href=" + h.makeBookmarklet(h.cfg.FriendBaseUrl, h.cfg.FriendRemoteToken, true))
 	}
 
 	var err error
@@ -223,6 +230,7 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
       <span class="bookmarklets-label">Bookmarklets:</span>
       <div class="bookmarklet"><a {{.ReadBookmarkletHref}}>Add to list</a></div>
       <div class="bookmarklet"><a {{.KindleBookmarkletHref}}>Send to Kindle</a></div>
+	  {{if .FriendBookmarkletHref}}<div class="bookmarklet"><a {{.FriendBookmarkletHref}}>Send to Friend's Kindle</a></div>{{end}}
     </div>
   </body>
 </html>`, d, fm)
