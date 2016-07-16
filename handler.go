@@ -69,12 +69,15 @@ func (h Handler) isAuthenticated(r *http.Request) bool {
 	return isAuth
 }
 
+func (h Handler) isFriend(r *http.Request) bool {
+	return len(h.cfg.FriendLocalToken) > 0 && r.FormValue(tokenParam) == h.cfg.FriendLocalToken
+}
+
 func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 	u := r.FormValue(addUrlParam)
 	if len(u) > 0 {
-		token := r.FormValue(tokenParam)
-		isFriend := len(h.cfg.FriendLocalToken) > 0 && token == h.cfg.FriendLocalToken
-		if !isFriend && token != h.getAddToken() {
+		isFriend := h.isFriend(r)
+		if !isFriend && r.FormValue(tokenParam) != h.getAddToken() {
 			h.cfg.Logger.Printf("Bad or missing token in add request from %v\n", r.RemoteAddr)
 			http.Error(w, "Invalid token", http.StatusForbidden)
 			return
@@ -295,7 +298,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Everything else requires authentication.
-	if !h.isAuthenticated(r) {
+	if !h.isAuthenticated(r) && !(reqPath == addUrlPath && h.isFriend(r)) {
 		h.cfg.Logger.Printf("Unauthenticated request from %v\n", r.RemoteAddr)
 		http.Redirect(w, r, h.cfg.GetPath(authUrlPath+"?"+redirectParam+"="+r.URL.Path), http.StatusFound)
 		return
