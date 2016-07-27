@@ -102,7 +102,16 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		http.Redirect(w, r, h.cfg.GetPath(pagesUrlPath, pi.Id), http.StatusFound)
+		if isFriend {
+			writeHeader(w, h.cfg, h.getStylesheets(), "Added page", "", "")
+			h.serveTemplate(w, `
+  <body>
+	<p>Successfully added {{.Url}}!
+  </body>
+</html>`, struct{ Url string }{Url: u}, template.FuncMap{})
+		} else {
+			http.Redirect(w, r, h.cfg.GetPath(pagesUrlPath, pi.Id), http.StatusFound)
+		}
 		return
 	}
 
