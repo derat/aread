@@ -58,7 +58,15 @@ func getFaviconUrl(origUrl string) (string, error) {
 }
 
 type Processor struct {
-	cfg Config
+	cfg    Config
+	client *http.Client
+}
+
+func newProcessor(cfg Config) *Processor {
+	p := &Processor{}
+	p.cfg = cfg
+	p.client = &http.Client{}
+	return p
 }
 
 func (p *Processor) rewriteUrl(origUrl string) (newUrl string, err error) {
@@ -87,10 +95,18 @@ func (p *Processor) rewriteUrl(origUrl string) (newUrl string, err error) {
 	return
 }
 
-func (p *Processor) openUrl(url string, maxRetries int) (io.ReadCloser, error) {
+func (p *Processor) openUrl(url string, head *http.Header, maxRetries int) (io.ReadCloser, error) {
 	for i := 0; ; i++ {
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to create request for %v: %v", url, err)
+		}
+		if head != nil {
+			req.Header = *head
+		}
+		resp, err := p.client.Do(req)
+
 		var transientError bool
-		resp, err := http.Get(url)
 		if err != nil {
 			transientError = true
 		} else if resp.StatusCode != 200 {
@@ -118,7 +134,7 @@ func (p *Processor) downloadImages(urls map[string]string, dir string) (totalByt
 			var bytes int64 = 0
 			defer func() { c <- bytes }()
 
-			body, err := p.openUrl(url, 0)
+			body, err := p.openUrl(url, nil, 0)
 			if err != nil {
 				p.cfg.Logger.Printf("Failed to download image %v: %v\n", url, err)
 				return
@@ -181,8 +197,10 @@ func (p *Processor) checkContent(pi PageInfo, content string) error {
 }
 
 func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err error) {
-	apiUrl := fmt.Sprintf("https://www.readability.com/api/content/v1/parser?url=%s&token=%s", url.QueryEscape(pi.OriginalUrl), p.cfg.ApiToken)
-	body, err := p.openUrl(apiUrl, maxPageRetries)
+	apiUrl := fmt.Sprintf("https://mercury.postlight.com/parser?url=%s", url.QueryEscape(pi.OriginalUrl))
+	head := make(http.Header)
+	head.Set("X-Api-Key", p.cfg.ApiToken)
+	body, err := p.openUrl(apiUrl, &head, maxPageRetries)
 	if err != nil {
 		return title, err
 	}
@@ -229,7 +247,7 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 	}
 
 	title, _ = getStringValue(&o, "title")
-	if len(title) == 0 {
+	if title == "" {
 		title = pi.OriginalUrl
 	}
 	if pi.FromFriend {
@@ -240,10 +258,16 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 	d.Author, _ = getStringValue(&o, "author")
 
 	rawDate, _ := getStringValue(&o, "date_published")
-	if len(rawDate) > 0 {
+	if rawDate != "" {
 		if parsedDate, err := time.Parse("2006-01-02 15:04:05", rawDate); err == nil {
 			d.PubDate = parsedDate.Format("Monday, January 2, 2006")
 		}
+	}
+
+	// TODO: Does this ever get set?
+	nextPageUrl, _ := getStringValue(&o, "next_page_url")
+	if nextPageUrl != "" {
+		p.cfg.Logger.Printf("Got next page URL %v", nextPageUrl)
 	}
 
 	// filename -> URL
@@ -269,7 +293,7 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 		totalBytes := p.downloadImages(imageUrls, dir)
 		p.cfg.Logger.Printf("Downloaded %v image(s) totalling %v byte(s)\n", len(imageUrls), totalBytes)
 	}
-	if len(faviconFilename) > 0 {
+	if faviconFilename != "" {
 		if _, err := os.Stat(filepath.Join(dir, faviconFilename)); err != nil {
 			faviconFilename = ""
 		}

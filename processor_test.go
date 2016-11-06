@@ -16,7 +16,7 @@ func TestRewriteUrl(t *testing.T) {
 		UrlPatternsFile: urlPatternsFile,
 		Logger:          log.New(os.Stderr, "", log.LstdFlags),
 	}
-	p := Processor{cfg}
+	p := newProcessor(cfg)
 
 	for _, tc := range []struct {
 		OrigUrl string
@@ -37,7 +37,7 @@ func TestCheckContent(t *testing.T) {
 		BadContentFile: badContentFile,
 		Logger:         log.New(os.Stderr, "", log.LstdFlags),
 	}
-	p := Processor{cfg}
+	p := newProcessor(cfg)
 
 	for _, tc := range []struct {
 		Url     string

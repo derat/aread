@@ -39,7 +39,7 @@ func main() {
 		cfg.Verbose = true
 	}
 
-	p := Processor{cfg}
+	p := newProcessor(cfg)
 
 	if daemon {
 		db, err := newDatabase(cfg.Database)
@@ -47,7 +47,7 @@ func main() {
 			logger.Fatalln(err)
 		}
 		logger.Println("Accepting connections")
-		fcgi.Serve(nil, newHandler(cfg, &p, db))
+		fcgi.Serve(nil, newHandler(cfg, p, db))
 	} else {
 		for i := range flag.Args() {
 			url := flag.Args()[i]
