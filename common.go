@@ -153,3 +153,14 @@ func readJsonFile(path string, out interface{}) error {
 	}
 	return nil
 }
+
+func joinUrlAndPath(url, path string) string {
+	// Can't use path.Join, as it changes e.g. "https://" to "https:/".
+	if strings.HasSuffix(url, "/") {
+		url = url[0 : len(url)-1]
+	}
+	if strings.HasPrefix(path, "/") {
+		path = path[1:len(path)]
+	}
+	return url + "/" + path
+}

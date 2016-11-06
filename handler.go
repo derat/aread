@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -43,7 +42,7 @@ func (h Handler) getAddToken() string {
 
 func (h Handler) makeBookmarklet(baseUrl string, token string, kindle bool) string {
 	getCurUrl := "encodeURIComponent(document.URL)"
-	addUrl := path.Join(baseUrl, addUrlPath) + "?" + addUrlParam + "=\"+" + getCurUrl + "+\"&" + tokenParam + "=" + token
+	addUrl := joinUrlAndPath(baseUrl, addUrlPath) + "?" + addUrlParam + "=\"+" + getCurUrl + "+\"&" + tokenParam + "=" + token
 	if kindle {
 		addUrl += "&" + addKindleParam + "=1"
 	}
