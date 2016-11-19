@@ -34,7 +34,7 @@ var voidElements = map[string]bool{
 	"wbr":     true,
 }
 
-func getAttrValue(token html.Token, name string) string {
+func getAttrValue(token *html.Token, name string) string {
 	for i := range token.Attr {
 		if token.Attr[i].Key == name {
 			return token.Attr[i].Val
@@ -92,7 +92,7 @@ func (r *Rewriter) readHiddenTagsFile(url string) (*hiddenIdsMap, *hiddenTagsMap
 	return &ids, &tags, nil
 }
 
-func (r *Rewriter) shouldHideToken(t html.Token, ids *hiddenIdsMap, tags *hiddenTagsMap) bool {
+func (r *Rewriter) shouldHideToken(t *html.Token, ids *hiddenIdsMap, tags *hiddenTagsMap) bool {
 	id := getAttrValue(t, "id")
 	if len(id) > 0 && (*ids)[id] {
 		return true
@@ -159,9 +159,9 @@ func (r *Rewriter) RewriteContent(input, url string) (content string, imageUrls 
 			continue
 		}
 
-		if r.shouldHideToken(t, hiddenIds, hiddenTags) {
+		if r.shouldHideToken(&t, hiddenIds, hiddenTags) {
 			r.cfg.Logger.Printf("Hiding <%v> token with id %q and class(es) %q\n",
-				t.Data, getAttrValue(t, "id"), getAttrValue(t, "class"))
+				t.Data, getAttrValue(&t, "id"), getAttrValue(&t, "class"))
 			if isStart {
 				hideDepth = 1
 			}
