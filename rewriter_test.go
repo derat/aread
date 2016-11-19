@@ -15,6 +15,13 @@ const (
 	outputPath     = "testdata/output.html"
 )
 
+var expectedImages []string = []string{
+	"http://www.example.com/img.png",
+	"http://assets.bwbx.io/images/i6vlZjCDxVKs/v1/488x-1.jpg",
+	"http://cdn.arstechnica.net/wp-content/uploads/2016/01/Screen-Shot-2016-01-30-at-11.30.32-PM-1280x562.png",
+	"http://a.com/drop-srcset.png",
+}
+
 func TestBasic(t *testing.T) {
 	cfg := Config{
 		HiddenTagsFile: hiddenTagsPath,
@@ -40,8 +47,17 @@ func TestBasic(t *testing.T) {
 	if output != string(expectedOutput) {
 		t.Errorf("actual output differed from expected output\n\nexpected:\n-----\n%v\n-----\nactual:\n-----\n%v\n-----\n", string(expectedOutput), output)
 	}
-	if len(imageUrls) != 3 {
-		t.Errorf("got %v image(s) instead of 2", len(imageUrls))
+
+	if len(imageUrls) != len(expectedImages) {
+		t.Errorf("got %v image(s) instead of %v", len(imageUrls), len(expectedImages))
 	}
-	// TODO: Actually check the image mapping.
+	for _, ei := range expectedImages {
+		fn := getLocalImageFilename(ei)
+		u, ok := imageUrls[fn]
+		if !ok {
+			t.Errorf("missing file %v for image %v", fn, ei)
+		} else if u != ei {
+			t.Errorf("file %v maps to %v, expected %v", fn, u, ei)
+		}
+	}
 }

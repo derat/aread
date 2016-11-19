@@ -125,6 +125,8 @@ func (r *Rewriter) fixImageUrl(url string) string {
 	return newUrl
 }
 
+// RewriteContent rewrites HTML that is passed to it. imageUrls maps from local
+// filename to the original remote image URL.
 func (r *Rewriter) RewriteContent(input, url string) (content string, imageUrls map[string]string, err error) {
 	hiddenIds, hiddenTags, err := r.readHiddenTagsFile(url)
 	if err != nil {
@@ -170,26 +172,34 @@ func (r *Rewriter) RewriteContent(input, url string) (content string, imageUrls 
 
 		if isStart && t.Data == "img" {
 			hasSrc := false
+			numAttr := 0
 			for i := range t.Attr {
 				attr := &t.Attr[i]
 				if attr.Key == "src" && len(attr.Val) > 0 {
 					hasSrc = true
 					if r.cfg.DownloadImages {
-						url := r.fixImageUrl(attr.Val)
-						filename := getLocalImageFilename(url)
-						imageUrls[filename] = url
+						imageUrl := r.fixImageUrl(attr.Val)
+						filename := getLocalImageFilename(imageUrl)
+						imageUrls[filename] = imageUrl
 						attr.Val = filename
 					}
 				} else if attr.Key == "title" && len(attr.Val) > 0 {
 					extraText = "\n<div class=\"img-title\">" +
 						html.EscapeString(attr.Val) + "</div>\n"
+				} else if attr.Key == "srcset" {
+					// Drop srcset attributes, since browsers will load them
+					// preferentially over rewritten src attributes.
+					continue
 				}
+				t.Attr[numAttr] = *attr
+				numAttr++
 			}
 			if !hasSrc {
 				// kindlegen barfs on empty <img> tags. One appears in
 				// http://online.wsj.com/articles/google-to-collect-data-to-define-healthy-human-1406246214.
 				continue
 			}
+			t.Attr = t.Attr[:numAttr]
 		} else if (isStart || isEnd) && t.Data == "h1" {
 			// Downgrade <h1> to <h2>.
 			t.Data = "h2"
