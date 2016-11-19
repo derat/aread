@@ -158,7 +158,8 @@ func (r *Rewriter) RewriteContent(input, url string) (content string, imageUrls 
 		}
 
 		if r.shouldHideToken(t, hiddenIds, hiddenTags) {
-			r.cfg.Logger.Printf("Hiding <%v> token with id %q and class(es) %q\n", t.Data, getAttrValue(t, "id"), getAttrValue(t, "class"))
+			r.cfg.Logger.Printf("Hiding <%v> token with id %q and class(es) %q\n",
+				t.Data, getAttrValue(t, "id"), getAttrValue(t, "class"))
 			if isStart {
 				hideDepth = 1
 			}
@@ -180,7 +181,8 @@ func (r *Rewriter) RewriteContent(input, url string) (content string, imageUrls 
 						attr.Val = filename
 					}
 				} else if attr.Key == "title" && len(attr.Val) > 0 {
-					extraText = "\n<div class=\"img-title\">" + html.EscapeString(attr.Val) + "</div>\n"
+					extraText = "\n<div class=\"img-title\">" +
+						html.EscapeString(attr.Val) + "</div>\n"
 				}
 			}
 			if !hasSrc {
@@ -192,21 +194,25 @@ func (r *Rewriter) RewriteContent(input, url string) (content string, imageUrls 
 			// Downgrade <h1> to <h2>.
 			t.Data = "h2"
 		} else if (isStart || isEnd) && (t.Data == "h4" || t.Data == "h5" || t.Data == "h6") {
-			// <h6> seems to mainly be used by people who don't know what they're doing. Upgrade <h4>, <h5>, and <h6> to <h3>.
+			// <h6> seems to mainly be used by people who don't know what
+			// they're doing. Upgrade <h4>, <h5>, and <h6> to <h3>.
 			t.Data = "h3"
 		} else if isStart && t.Data == "iframe" {
-			// Readability puts YouTube videos into iframes but kindlegen doesn't know what to do with them.
+			// Readability puts YouTube videos into iframes but kindlegen
+			// doesn't know what to do with them.
 			continue
 		} else if (isStart || isEnd) && t.Data == "noscript" {
-			// Tell the tokenizer to interpret nested elements. This handles the non-JS tags for lazily-loaded images on theverge.com.
+			// Tell the tokenizer to interpret nested elements. This handles the
+			// non-JS tags for lazily-loaded images on theverge.com.
 			if isStart {
 				z.NextIsNotRawText()
 			}
 			// Keep kindlegen from complaining about <noscript>.
 			continue
 		} else if (isStart || isEnd) && t.Data == "body" {
-			// Why does Readability leave body tags within the content sometimes?
-			// See e.g. http://kirtimukha.com/surfings/Cogitation/wisdom_of_insecurity_by_alan_wat.htm
+			// Why does Readability leave body tags within the content
+			// sometimes? See e.g.
+			// http://kirtimukha.com/surfings/Cogitation/wisdom_of_insecurity_by_alan_wat.htm
 			continue
 		}
 
