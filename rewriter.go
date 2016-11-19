@@ -1,8 +1,8 @@
 package main
 
 import (
-	"code.google.com/p/go.net/html"
 	"fmt"
+	"golang.org/x/net/html"
 	"io"
 	"regexp"
 	"strings"
