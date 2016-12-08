@@ -29,7 +29,7 @@ div.content blockquote {
   background-color: #dbdbd7;
   -webkit-margin-start: 20px;
   -webkit-margin-end: 20px;
-  padding: 2px 1em;
+  padding: 0.75em 1em;
   border-radius: 16px;
 }
 div.content blockquote li {
