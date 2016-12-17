@@ -58,6 +58,7 @@ func (r *Rewriter) readHiddenTagsFile(url string) (*hiddenIdsMap, *hiddenTagsMap
 	// host -> [element.class, element.class, ...]
 	// "div.class" matches all divs with class "class".
 	// "div.*" or just "div" matches all divs.
+	// "*.class" matches all elements with class "class".
 	// "#id" matches the element with ID "id".
 	data := make(map[string][]string)
 	if err := readJsonFile(r.cfg.HiddenTagsFile, &data); err != nil {
@@ -104,6 +105,15 @@ func (r *Rewriter) shouldHideToken(t *html.Token, ids *hiddenIdsMap, tags *hidde
 		for _, c := range strings.Fields(getAttrValue(t, "class")) {
 			if _, ok := classes[c]; ok {
 				return true
+			}
+		}
+	}
+	if wildcardClasses, ok := (*tags)["*"]; ok {
+		for _, tc := range strings.Fields(getAttrValue(t, "class")) {
+			for wc := range wildcardClasses {
+				if tc == wc {
+					return true
+				}
 			}
 		}
 	}
