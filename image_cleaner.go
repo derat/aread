@@ -1,7 +1,7 @@
 package main
 
 import (
-	"code.google.com/p/graphics-go/graphics"
+	"github.com/BurntSushi/graphics-go/graphics"
 	"image"
 	"image/color"
 	"image/jpeg"
