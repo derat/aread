@@ -9,7 +9,7 @@ import (
 )
 
 type Config struct {
-	ApiToken          string
+	ParserPath        string
 	BaseUrl           string
 	StaticDir         string
 	PageDir           string

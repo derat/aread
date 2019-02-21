@@ -197,21 +197,13 @@ func (p *Processor) checkContent(pi PageInfo, content string) error {
 }
 
 func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err error) {
-	apiUrl := fmt.Sprintf("https://mercury.postlight.com/parser?url=%s", url.QueryEscape(pi.OriginalUrl))
-	head := make(http.Header)
-	head.Set("X-Api-Key", p.cfg.ApiToken)
-	body, err := p.openUrl(apiUrl, &head, maxPageRetries)
+	b, err := exec.Command(p.cfg.ParserPath, pi.OriginalUrl).Output()
 	if err != nil {
-		return title, err
+		return "", err
 	}
-	defer body.Close()
-	var b []byte
-	if b, err = ioutil.ReadAll(body); err != nil {
-		return title, fmt.Errorf("Unable to read %s: %v", apiUrl, err)
-	}
-	o := make(map[string]interface{})
+	o := make(map[string]interface{}) // TODO: This is dumb.
 	if err = json.Unmarshal(b, &o); err != nil {
-		return title, fmt.Errorf("Unable to unmarshal JSON from %v: %v", apiUrl, err)
+		return "", fmt.Errorf("Unable to unmarshal JSON: %v", err)
 	}
 
 	queryParams := fmt.Sprintf("?%s=%s&%s=%s&%s=%s", idParam, pi.Id, tokenParam, pi.Token, redirectParam, url.QueryEscape(p.cfg.GetPath()))
@@ -236,7 +228,7 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 
 	content, err := getStringValue(&o, "content")
 	if err != nil {
-		return title, fmt.Errorf("Unable to get content from %v: %v", apiUrl, err)
+		return title, fmt.Errorf("Unable to get content: %v", err)
 	}
 	if p.cfg.Verbose {
 		p.cfg.Logger.Printf("Content:\n%v", content)
