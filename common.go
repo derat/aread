@@ -20,9 +20,9 @@ const (
 	kindleURLPath     = "kindle"
 	staticURLPath     = "static"
 	pagesURLPath      = "pages"
-	appCssFile        = "app.css"
-	commonCssFile     = "common.css"
-	pageCssFile       = "page.css"
+	appCSSFile        = "app.css"
+	commonCSSFile     = "common.css"
+	pageCSSFile       = "page.css"
 	faviconFile       = "favicon.ico"
 
 	// Query parameter names for HTTP requests.

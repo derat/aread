@@ -293,7 +293,7 @@ func (p *processor) downloadContent(pi PageInfo, dir string) (title string, err 
 		}
 	}
 
-	cssFiles := []string{commonCssFile, pageCssFile}
+	cssFiles := []string{commonCSSFile, pageCSSFile}
 	for _, file := range cssFiles {
 		if err = copyFile(filepath.Join(dir, file), filepath.Join(p.cfg.StaticDir, file)); err != nil {
 			return title, err

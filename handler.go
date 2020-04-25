@@ -33,7 +33,7 @@ func newHandler(cfg config, proc *processor, db *database) handler {
 }
 
 func (h handler) getStylesheets() []string {
-	return []string{h.cfg.GetPath(staticURLPath, commonCssFile), h.cfg.GetPath(staticURLPath, appCssFile)}
+	return []string{h.cfg.GetPath(staticURLPath, commonCSSFile), h.cfg.GetPath(staticURLPath, appCSSFile)}
 }
 
 func (h handler) getAddToken() string {
