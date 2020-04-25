@@ -11,7 +11,7 @@ const (
 	urlPatternsFile = "testdata/url_patterns.json"
 )
 
-func TestRewriteURL(t *testing.T) {
+func TestProcessor_RewriteURL(t *testing.T) {
 	p := newProcessor(config{
 		URLPatternsFile: urlPatternsFile,
 		Logger:          log.New(os.Stderr, "", log.LstdFlags),
@@ -31,7 +31,7 @@ func TestRewriteURL(t *testing.T) {
 	}
 }
 
-func TestCheckContent(t *testing.T) {
+func TestProcessor_CheckContent(t *testing.T) {
 	p := newProcessor(config{
 		BadContentFile: badContentFile,
 		Logger:         log.New(os.Stderr, "", log.LstdFlags),

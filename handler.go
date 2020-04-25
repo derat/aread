@@ -16,17 +16,17 @@ const (
 
 type handler struct {
 	cfg           config
-	processor     *Processor
+	proc          *processor
 	db            *Database
 	staticHandler http.Handler
 	pageHandler   http.Handler
 }
 
-func newHandler(cfg config, p *Processor, d *Database) handler {
+func newHandler(cfg config, proc *processor, db *Database) handler {
 	return handler{
 		cfg:           cfg,
-		processor:     p,
-		db:            d,
+		proc:          proc,
+		db:            db,
 		staticHandler: http.StripPrefix(cfg.GetPath(staticURLPath), http.FileServer(http.Dir(cfg.StaticDir))),
 		pageHandler:   http.StripPrefix(cfg.GetPath(pagesURLPath), http.FileServer(http.Dir(cfg.PageDir))),
 	}
@@ -83,7 +83,7 @@ func (h handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		pi, err := h.processor.ProcessURL(u, isFriend)
+		pi, err := h.proc.ProcessURL(u, isFriend)
 		if err != nil {
 			h.cfg.Logger.Println(err)
 			http.Error(w, fmt.Sprintf("Failed to process %v: %v", u, err), http.StatusInternalServerError)
@@ -95,7 +95,7 @@ func (h handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if r.FormValue(addKindleParam) == "1" {
-			if err = h.processor.SendToKindle(pi.Id); err != nil {
+			if err = h.proc.SendToKindle(pi.Id); err != nil {
 				h.cfg.Logger.Println(err)
 				http.Error(w, fmt.Sprintf("Failed to send to Kindle: %v", err), http.StatusInternalServerError)
 				return
@@ -162,7 +162,7 @@ func (h handler) handleKindle(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid token", http.StatusBadRequest)
 		return
 	}
-	if err := h.processor.SendToKindle(pi.Id); err != nil {
+	if err := h.proc.SendToKindle(pi.Id); err != nil {
 		h.cfg.Logger.Println(err)
 		http.Error(w, fmt.Sprintf("Failed to send to Kindle: %v", err), http.StatusInternalServerError)
 		return

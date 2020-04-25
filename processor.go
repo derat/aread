@@ -59,19 +59,19 @@ func getFaviconURL(origURL string) (string, error) {
 	return u.String(), nil
 }
 
-type Processor struct {
+type processor struct {
 	cfg    config
 	client *http.Client
 }
 
-func newProcessor(cfg config) *Processor {
-	p := &Processor{}
+func newProcessor(cfg config) *processor {
+	p := &processor{}
 	p.cfg = cfg
 	p.client = &http.Client{}
 	return p
 }
 
-func (p *Processor) rewriteURL(origURL string) (newURL string, err error) {
+func (p *processor) rewriteURL(origURL string) (newURL string, err error) {
 	if len(p.cfg.URLPatternsFile) == 0 {
 		return origURL, nil
 	}
@@ -97,7 +97,7 @@ func (p *Processor) rewriteURL(origURL string) (newURL string, err error) {
 	return
 }
 
-func (p *Processor) openURL(url string, head *http.Header, maxRetries int) (io.ReadCloser, error) {
+func (p *processor) openURL(url string, head *http.Header, maxRetries int) (io.ReadCloser, error) {
 	for i := 0; ; i++ {
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
@@ -128,7 +128,7 @@ func (p *Processor) openURL(url string, head *http.Header, maxRetries int) (io.R
 	}
 }
 
-func (p *Processor) downloadImages(urls map[string]string, dir string) (totalBytes int64) {
+func (p *processor) downloadImages(urls map[string]string, dir string) (totalBytes int64) {
 	ic := newImageCleaner(p.cfg)
 	c := make(chan int64)
 	for filename, url := range urls {
@@ -170,7 +170,7 @@ func (p *Processor) downloadImages(urls map[string]string, dir string) (totalByt
 	return totalBytes
 }
 
-func (p *Processor) checkContent(pi PageInfo, content string) error {
+func (p *processor) checkContent(pi PageInfo, content string) error {
 	if len(p.cfg.BadContentFile) == 0 {
 		return nil
 	}
@@ -198,7 +198,7 @@ func (p *Processor) checkContent(pi PageInfo, content string) error {
 	return nil
 }
 
-func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err error) {
+func (p *processor) downloadContent(pi PageInfo, dir string) (title string, err error) {
 	b, err := exec.Command(p.cfg.ParserPath, pi.OriginalURL).Output()
 	if err != nil {
 		return "", err
@@ -337,7 +337,7 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 	return title, nil
 }
 
-func (p *Processor) buildDoc(dir string) error {
+func (p *processor) buildDoc(dir string) error {
 	c := exec.Command("docker", "run", "-v", dir+":/source", "jagregory/kindlegen", kindleFile, "-o", docFile)
 	o, err := c.CombinedOutput()
 	p.cfg.Logger.Printf("kindlegen output:%s", strings.Replace("\n"+string(o), "\n", "\n  ", -1))
@@ -351,7 +351,7 @@ func (p *Processor) buildDoc(dir string) error {
 }
 
 // Based on https://gist.github.com/rmulley/6603544.
-func (p *Processor) sendMail(docPath string) error {
+func (p *processor) sendMail(docPath string) error {
 	data, err := ioutil.ReadFile(docPath)
 	if err != nil {
 		return err
@@ -417,7 +417,7 @@ func (p *Processor) sendMail(docPath string) error {
 	return nil
 }
 
-func (p *Processor) ProcessURL(contentURL string, fromFriend bool) (pi PageInfo, err error) {
+func (p *processor) ProcessURL(contentURL string, fromFriend bool) (pi PageInfo, err error) {
 	if contentURL, err = p.rewriteURL(contentURL); err != nil {
 		return pi, fmt.Errorf("failed rewriting URL: %v", err)
 	}
@@ -447,7 +447,7 @@ func (p *Processor) ProcessURL(contentURL string, fromFriend bool) (pi PageInfo,
 	return pi, nil
 }
 
-func (p *Processor) SendToKindle(id string) error {
+func (p *processor) SendToKindle(id string) error {
 	if matched, err := regexp.Match("^[a-f0-9]+$", []byte(id)); err != nil {
 		return err
 	} else if !matched {
