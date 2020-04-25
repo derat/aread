@@ -5,6 +5,7 @@ body {
 #url {
   width: 300px;
 }
-#username, #password {
+#username,
+#password {
   width: 100px;
 }

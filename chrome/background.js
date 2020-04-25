@@ -15,5 +15,5 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
 chrome.contextMenus.create({
   id: 'send-to-kindle',
   title: 'Send to Kindle',
-  contexts: ['link']
+  contexts: ['link'],
 });
