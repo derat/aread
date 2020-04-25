@@ -33,7 +33,7 @@ func (c *ImageCleaner) updateImage(src image.Image, imgFmt, filename string) err
 		return nil
 	}
 
-	var dst *image.NRGBA
+	var dst *image.RGBA
 	var db image.Rectangle
 
 	if needsScale {
@@ -47,7 +47,7 @@ func (c *ImageCleaner) updateImage(src image.Image, imgFmt, filename string) err
 
 		c.cfg.Logger.Printf("Scaling %v from %vx%v to %vx%v\n",
 			filename, sb.Dx(), sb.Dy(), db.Dx(), db.Dy())
-		dst = image.NewNRGBA(db)
+		dst = image.NewRGBA(db)
 		draw.ApproxBiLinear.Scale(dst, db, src, sb, draw.Src, nil)
 	}
 
@@ -58,19 +58,19 @@ func (c *ImageCleaner) updateImage(src image.Image, imgFmt, filename string) err
 			sb = dst.Bounds()
 		} else {
 			db = image.Rect(0, 0, sb.Dx(), sb.Dy())
-			dst = image.NewNRGBA(db)
+			dst = image.NewRGBA(db)
 		}
 		c.cfg.Logger.Printf("Making %v opaque\n", filename)
 		for y := 0; y < sb.Dy(); y++ {
 			for x := 0; x < sb.Dx(); x++ {
-				cl := color.NRGBAModel.Convert(src.At(sb.Min.X+x, sb.Min.Y+y)).(color.NRGBA)
+				cl := color.RGBAModel.Convert(src.At(sb.Min.X+x, sb.Min.Y+y)).(color.RGBA)
 				if cl.A == 0 {
 					cl.R = 255
 					cl.G = 255
 					cl.B = 255
 					cl.A = 255
 				}
-				dst.SetNRGBA(db.Min.X+x, db.Min.Y+y, cl)
+				dst.SetRGBA(db.Min.X+x, db.Min.Y+y, cl)
 			}
 		}
 	}
