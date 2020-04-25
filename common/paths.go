@@ -1,0 +1,21 @@
+package common
+
+const (
+	AddURLPath     = "add"
+	ArchiveURLPath = "archive"
+	AuthURLPath    = "auth"
+	KindleURLPath  = "kindle"
+	PagesURLPath   = "pages"
+	StaticURLPath  = "static"
+
+	AppCSSFile    = "app.css"
+	CommonCSSFile = "common.css"
+	PageCSSFile   = "page.css"
+
+	// Query parameter names for HTTP requests.
+	AddKindleParam = "k"
+	AddURLParam    = "u"
+	IDParam        = "i"
+	RedirectParam  = "r"
+	TokenParam     = "t"
+)

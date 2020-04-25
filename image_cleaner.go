@@ -8,17 +8,19 @@ import (
 	"os"
 	"sync"
 
+	"github.com/derat/aread/common"
+
 	"golang.org/x/image/draw"
 )
 
 type imageCleaner struct {
-	cfg   config
+	cfg   *common.Config
 	procs int
 	mutex sync.RWMutex
 	cond  *sync.Cond
 }
 
-func newImageCleaner(cfg config) *imageCleaner {
+func newImageCleaner(cfg *common.Config) *imageCleaner {
 	c := &imageCleaner{cfg: cfg}
 	c.cond = sync.NewCond(&c.mutex)
 	return c

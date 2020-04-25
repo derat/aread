@@ -4,6 +4,8 @@ import (
 	"log"
 	"os"
 	"testing"
+
+	"github.com/derat/aread/common"
 )
 
 const (
@@ -12,7 +14,7 @@ const (
 )
 
 func TestProcessor_RewriteURL(t *testing.T) {
-	p := newProcessor(config{
+	p := newProcessor(&common.Config{
 		URLPatternsFile: urlPatternsFile,
 		Logger:          log.New(os.Stderr, "", log.LstdFlags),
 	})
@@ -32,7 +34,7 @@ func TestProcessor_RewriteURL(t *testing.T) {
 }
 
 func TestProcessor_CheckContent(t *testing.T) {
-	p := newProcessor(config{
+	p := newProcessor(&common.Config{
 		BadContentFile: badContentFile,
 		Logger:         log.New(os.Stderr, "", log.LstdFlags),
 	})
@@ -47,7 +49,7 @@ func TestProcessor_CheckContent(t *testing.T) {
 		{"http://www.example.net/bad.html", "<html><body><h1>Go away.</h1></body></html>", true},
 		{"http://www.example.net/really_bad.html", "<html><body><h1>Really go away.</h1></body></html>", false},
 	} {
-		err := p.checkContent(PageInfo{OriginalURL: tc.URL}, tc.Content)
+		err := p.checkContent(common.PageInfo{OriginalURL: tc.URL}, tc.Content)
 		if tc.Okay && err != nil {
 			t.Errorf("got error for %q: %v", tc.URL, err)
 		} else if !tc.Okay && err == nil {

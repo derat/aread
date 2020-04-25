@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/derat/aread/common"
 )
 
 func runClean(w, h int, clr color.Color, maxw, maxh int) (image.Image, error) {
@@ -36,7 +38,7 @@ func runClean(w, h int, clr color.Color, maxw, maxh int) (image.Image, error) {
 		return nil, fmt.Errorf("failed to encode to %v: %v", p, err)
 	}
 
-	ic := newImageCleaner(config{
+	ic := newImageCleaner(&common.Config{
 		JpegQuality:    90,
 		Logger:         log.New(os.Stderr, "", log.LstdFlags),
 		MaxImageBytes:  256 * 1024,

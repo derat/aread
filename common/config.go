@@ -1,14 +1,12 @@
-package main
+package common
 
 import (
-	"encoding/json"
 	"log"
 	"net/url"
-	"os"
 	"path"
 )
 
-type config struct {
+type Config struct {
 	ParserPath        string
 	BaseURL           string
 	StaticDir         string
@@ -38,8 +36,8 @@ type config struct {
 	Logger            *log.Logger
 }
 
-func readConfig(p string, lg *log.Logger) (config, error) {
-	cfg := config{
+func ReadConfig(p string, lg *log.Logger) (*Config, error) {
+	cfg := Config{
 		Logger:         lg,
 		PageDir:        "/tmp",
 		DownloadImages: true,
@@ -51,24 +49,17 @@ func readConfig(p string, lg *log.Logger) (config, error) {
 		MaxListSize:    50,
 	}
 
-	f, err := os.Open(p)
-	if err != nil {
-		return cfg, err
-	}
-	defer f.Close()
-
-	d := json.NewDecoder(f)
-	if err = d.Decode(&cfg); err != nil {
-		return cfg, err
+	if err := ReadJSONFile(p, &cfg); err != nil {
+		return nil, err
 	}
 
 	if cfg.BaseURL[len(cfg.BaseURL)-1] == '/' {
 		cfg.BaseURL = cfg.BaseURL[:len(cfg.BaseURL)-1]
 	}
-	return cfg, nil
+	return &cfg, nil
 }
 
-func (cfg *config) GetPath(p ...string) string {
+func (cfg *Config) GetPath(p ...string) string {
 	u, err := url.Parse(cfg.BaseURL)
 	if err != nil {
 		cfg.Logger.Fatalf("Unable to parse base URL %v: %v\n", cfg.BaseURL, err)

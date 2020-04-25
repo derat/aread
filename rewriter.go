@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/derat/aread/common"
 	"golang.org/x/net/html"
 )
 
@@ -45,7 +46,7 @@ func getAttrValue(token *html.Token, name string) string {
 }
 
 type rewriter struct {
-	cfg config
+	cfg *common.Config
 }
 
 // readHiddenTagsFile returns maps containing the tags that should be hidden for url.
@@ -62,11 +63,11 @@ func (rw *rewriter) readHiddenTagsFile(url string) (*hiddenIdsMap, *hiddenTagsMa
 	// "*.class" matches all elements with class "class".
 	// "#id" matches the element with ID "id".
 	data := make(map[string][]string)
-	if err := readJSONFile(rw.cfg.HiddenTagsFile, &data); err != nil {
+	if err := common.ReadJSONFile(rw.cfg.HiddenTagsFile, &data); err != nil {
 		return nil, nil, err
 	}
 
-	urlHost := getHost(url)
+	urlHost := common.GetHost(url)
 	for host, entries := range data {
 		if host != "*" && host != urlHost && !strings.HasSuffix(urlHost, "."+host) {
 			continue
@@ -190,7 +191,7 @@ func (rw *rewriter) RewriteContent(input, url string) (content string, imageURLs
 					hasSrc = true
 					if rw.cfg.DownloadImages {
 						imageURL := rw.fixImageURL(attr.Val)
-						filename := getLocalImageFilename(imageURL)
+						filename := common.LocalImageFilename(imageURL)
 						imageURLs[filename] = imageURL
 						attr.Val = filename
 					}

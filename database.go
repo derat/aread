@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/derat/aread/common"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -57,7 +58,7 @@ func (d *database) addSession(id, ip string) error {
 	return nil
 }
 
-func (d *database) addPage(pi PageInfo) error {
+func (d *database) addPage(pi common.PageInfo) error {
 	q := "INSERT OR REPLACE INTO Pages (Id, OriginalUrl, Title, TimeAdded, Token) VALUES(?, ?, ?, ?, ?)"
 	if _, err := d.db.Exec(q, pi.Id, pi.OriginalURL, pi.Title, pi.TimeAdded, pi.Token); err != nil {
 		return err
@@ -65,7 +66,7 @@ func (d *database) addPage(pi PageInfo) error {
 	return nil
 }
 
-func (d *database) getPage(id string) (pi PageInfo, err error) {
+func (d *database) getPage(id string) (pi common.PageInfo, err error) {
 	rows, err := d.db.Query("SELECT Id, OriginalUrl, Title, TimeAdded, Token FROM Pages WHERE Id = ?", id)
 	if err != nil {
 		return pi, err
@@ -80,7 +81,7 @@ func (d *database) getPage(id string) (pi PageInfo, err error) {
 	return pi, nil
 }
 
-func (d *database) getAllPages(archived bool, maxPages int) (pages []PageInfo, err error) {
+func (d *database) getAllPages(archived bool, maxPages int) (pages []common.PageInfo, err error) {
 	q := "SELECT Id, OriginalUrl, Title, TimeAdded, Token FROM Pages WHERE Archived = ? ORDER BY TimeAdded DESC LIMIT ?"
 	rows, err := d.db.Query(q, archived, maxPages)
 	if err != nil {
@@ -88,7 +89,7 @@ func (d *database) getAllPages(archived bool, maxPages int) (pages []PageInfo, e
 	}
 	defer rows.Close()
 	for rows.Next() {
-		pi := PageInfo{}
+		pi := common.PageInfo{}
 		if err = rows.Scan(&pi.Id, &pi.OriginalURL, &pi.Title, &pi.TimeAdded, &pi.Token); err != nil {
 			return pages, err
 		}

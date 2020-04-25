@@ -6,6 +6,8 @@ import (
 	"os"
 	"regexp"
 	"testing"
+
+	"github.com/derat/aread/common"
 )
 
 const (
@@ -23,7 +25,7 @@ var expectedImages []string = []string{
 }
 
 func TestBasic(t *testing.T) {
-	rw := rewriter{config{
+	rw := rewriter{&common.Config{
 		HiddenTagsFile: hiddenTagsPath,
 		Logger:         log.New(os.Stderr, "", log.LstdFlags),
 		DownloadImages: true,
@@ -51,7 +53,7 @@ func TestBasic(t *testing.T) {
 		t.Errorf("got %v image(s) instead of %v", len(imageURLs), len(expectedImages))
 	}
 	for _, ei := range expectedImages {
-		fn := getLocalImageFilename(ei)
+		fn := common.LocalImageFilename(ei)
 		u, ok := imageURLs[fn]
 		if !ok {
 			t.Errorf("missing file %v for image %v", fn, ei)

@@ -8,6 +8,8 @@ import (
 	"net/http/fcgi"
 	"os"
 	"path/filepath"
+
+	"github.com/derat/aread/common"
 )
 
 func main() {
@@ -30,7 +32,7 @@ func main() {
 		logger = log.New(os.Stderr, "", log.LstdFlags)
 	}
 
-	cfg, err := readConfig(configPath, logger)
+	cfg, err := common.ReadConfig(configPath, logger)
 	if err != nil {
 		logger.Fatalf("Unable to read config from %v: %v\n", configPath, err)
 	}

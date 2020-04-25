@@ -25,6 +25,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/derat/aread/common"
 )
 
 const (
@@ -60,15 +62,15 @@ func getFaviconURL(origURL string) (string, error) {
 }
 
 type processor struct {
-	cfg    config
+	cfg    *common.Config
 	client *http.Client
 }
 
-func newProcessor(cfg config) *processor {
-	p := &processor{}
-	p.cfg = cfg
-	p.client = &http.Client{}
-	return p
+func newProcessor(cfg *common.Config) *processor {
+	return &processor{
+		cfg:    cfg,
+		client: &http.Client{},
+	}
 }
 
 func (p *processor) rewriteURL(origURL string) (newURL string, err error) {
@@ -77,7 +79,7 @@ func (p *processor) rewriteURL(origURL string) (newURL string, err error) {
 	}
 
 	pats := make([][]string, 0)
-	if err = readJSONFile(p.cfg.URLPatternsFile, &pats); err != nil {
+	if err = common.ReadJSONFile(p.cfg.URLPatternsFile, &pats); err != nil {
 		return
 	}
 	newURL = origURL
@@ -170,13 +172,13 @@ func (p *processor) downloadImages(urls map[string]string, dir string) (totalByt
 	return totalBytes
 }
 
-func (p *processor) checkContent(pi PageInfo, content string) error {
+func (p *processor) checkContent(pi common.PageInfo, content string) error {
 	if len(p.cfg.BadContentFile) == 0 {
 		return nil
 	}
 
 	pats := make([][]string, 0)
-	if err := readJSONFile(p.cfg.BadContentFile, &pats); err != nil {
+	if err := common.ReadJSONFile(p.cfg.BadContentFile, &pats); err != nil {
 		return err
 	}
 	for i, entry := range pats {
@@ -198,7 +200,7 @@ func (p *processor) checkContent(pi PageInfo, content string) error {
 	return nil
 }
 
-func (p *processor) downloadContent(pi PageInfo, dir string) (title string, err error) {
+func (p *processor) downloadContent(pi common.PageInfo, dir string) (title string, err error) {
 	b, err := exec.Command(p.cfg.ParserPath, pi.OriginalURL).Output()
 	if err != nil {
 		return "", err
@@ -208,7 +210,10 @@ func (p *processor) downloadContent(pi PageInfo, dir string) (title string, err 
 		return "", fmt.Errorf("unable to unmarshal JSON: %v", err)
 	}
 
-	queryParams := fmt.Sprintf("?%s=%s&%s=%s&%s=%s", idParam, pi.Id, tokenParam, pi.Token, redirectParam, url.QueryEscape(p.cfg.GetPath()))
+	queryParams := fmt.Sprintf("?%s=%s&%s=%s&%s=%s",
+		common.IDParam, pi.Id,
+		common.TokenParam, pi.Token,
+		common.RedirectParam, url.QueryEscape(p.cfg.GetPath()))
 	d := struct {
 		Content     template.HTML
 		ForWeb      bool
@@ -222,9 +227,9 @@ func (p *processor) downloadContent(pi PageInfo, dir string) (title string, err 
 		ListPath    string
 	}{
 		URL:         pi.OriginalURL,
-		Host:        getHost(pi.OriginalURL),
-		ArchivePath: p.cfg.GetPath(archiveURLPath + queryParams),
-		KindlePath:  p.cfg.GetPath(kindleURLPath + queryParams),
+		Host:        common.GetHost(pi.OriginalURL),
+		ArchivePath: p.cfg.GetPath(common.ArchiveURLPath + queryParams),
+		KindlePath:  p.cfg.GetPath(common.KindleURLPath + queryParams),
 		ListPath:    p.cfg.GetPath(),
 	}
 
@@ -278,7 +283,7 @@ func (p *processor) downloadContent(pi PageInfo, dir string) (title string, err 
 		if faviconURL, err := getFaviconURL(pi.OriginalURL); err != nil {
 			p.cfg.Logger.Printf("Unable to generate favicon URL for %v: %v", pi.OriginalURL, err)
 		} else {
-			faviconFilename = getLocalImageFilename(faviconURL)
+			faviconFilename = common.LocalImageFilename(faviconURL)
 			imageURLs[faviconFilename] = faviconURL
 		}
 	}
@@ -293,7 +298,7 @@ func (p *processor) downloadContent(pi PageInfo, dir string) (title string, err 
 		}
 	}
 
-	cssFiles := []string{commonCSSFile, pageCSSFile}
+	cssFiles := []string{common.CommonCSSFile, common.PageCSSFile}
 	for _, file := range cssFiles {
 		if err = copyFile(filepath.Join(dir, file), filepath.Join(p.cfg.StaticDir, file)); err != nil {
 			return title, err
@@ -307,7 +312,7 @@ func (p *processor) downloadContent(pi PageInfo, dir string) (title string, err 
 		}
 		defer contentFile.Close()
 
-		writeHeader(contentFile, p.cfg, cssFiles, title, faviconFilename, d.Author)
+		common.WriteHeader(contentFile, p.cfg, cssFiles, title, faviconFilename, d.Author)
 		t := `
   <body>
     <h1 id="title-header">{{.Title}}</h1>
@@ -329,7 +334,7 @@ func (p *processor) downloadContent(pi PageInfo, dir string) (title string, err 
   </body>
 </html>`
 		d.ForWeb = filename != kindleFile
-		if err := writeTemplate(contentFile, p.cfg, t, d, template.FuncMap{}); err != nil {
+		if err := common.WriteTemplate(contentFile, p.cfg, t, d, template.FuncMap{}); err != nil {
 			return title, fmt.Errorf("failed to execute page template: %v", err)
 		}
 	}
@@ -417,15 +422,15 @@ func (p *processor) sendMail(docPath string) error {
 	return nil
 }
 
-func (p *processor) ProcessURL(contentURL string, fromFriend bool) (pi PageInfo, err error) {
+func (p *processor) ProcessURL(contentURL string, fromFriend bool) (pi common.PageInfo, err error) {
 	if contentURL, err = p.rewriteURL(contentURL); err != nil {
 		return pi, fmt.Errorf("failed rewriting URL: %v", err)
 	}
 
-	pi.Id = getSHA1String(contentURL)
+	pi.Id = common.SHA1String(contentURL)
 	pi.OriginalURL = contentURL
 	pi.TimeAdded = time.Now().Unix()
-	pi.Token = getSHA1String(fmt.Sprintf("%s|%s|%s", p.cfg.Username, p.cfg.Password, contentURL))
+	pi.Token = common.SHA1String(fmt.Sprintf("%s|%s|%s", p.cfg.Username, p.cfg.Password, contentURL))
 	pi.FromFriend = fromFriend
 
 	outDir := filepath.Join(p.cfg.PageDir, pi.Id)
@@ -475,4 +480,23 @@ func (p *processor) SendToKindle(id string) error {
 		return err
 	}
 	return nil
+}
+
+func copyFile(dest, src string) error {
+	s, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
+	d, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(d, s); err != nil {
+		d.Close()
+		return err
+	}
+	return d.Close()
 }

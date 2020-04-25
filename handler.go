@@ -4,54 +4,55 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
+
+	"github.com/derat/aread/common"
 )
 
-const (
-	addURLParam    = "u"
-	addKindleParam = "k"
-)
+const sessionCookieName = "session"
 
 type handler struct {
-	cfg           config
+	cfg           *common.Config
 	proc          *processor
 	db            *database
 	staticHandler http.Handler
 	pageHandler   http.Handler
 }
 
-func newHandler(cfg config, proc *processor, db *database) handler {
+func newHandler(cfg *common.Config, proc *processor, db *database) handler {
 	return handler{
-		cfg:           cfg,
-		proc:          proc,
-		db:            db,
-		staticHandler: http.StripPrefix(cfg.GetPath(staticURLPath), http.FileServer(http.Dir(cfg.StaticDir))),
-		pageHandler:   http.StripPrefix(cfg.GetPath(pagesURLPath), http.FileServer(http.Dir(cfg.PageDir))),
+		cfg:  cfg,
+		proc: proc,
+		db:   db,
+		staticHandler: http.StripPrefix(cfg.GetPath(common.StaticURLPath),
+			http.FileServer(http.Dir(cfg.StaticDir))),
+		pageHandler: http.StripPrefix(cfg.GetPath(common.PagesURLPath),
+			http.FileServer(http.Dir(cfg.PageDir))),
 	}
 }
 
 func (h handler) getStylesheets() []string {
-	return []string{h.cfg.GetPath(staticURLPath, commonCSSFile), h.cfg.GetPath(staticURLPath, appCSSFile)}
+	return []string{h.cfg.GetPath(common.StaticURLPath, common.CommonCSSFile),
+		h.cfg.GetPath(common.StaticURLPath, common.AppCSSFile)}
 }
 
 func (h handler) getAddToken() string {
-	return getSHA1String(h.cfg.Username + "|" + h.cfg.Password)
+	return common.SHA1String(h.cfg.Username + "|" + h.cfg.Password)
 }
 
 func (h handler) makeBookmarklet(baseURL string, token string, kindle bool) string {
 	getCurURL := "encodeURIComponent(document.URL)"
-	addURL := joinURLAndPath(baseURL, addURLPath) +
-		fmt.Sprintf("?%s=\"+%s+\"&%s=%s", addURLParam, getCurURL, tokenParam, token)
+	addURL := joinURLAndPath(baseURL, common.AddURLPath) +
+		fmt.Sprintf("?%s=\"+%s+\"&%s=%s", common.AddURLParam, getCurURL, common.TokenParam, token)
 	if kindle {
-		addURL += fmt.Sprintf("&%s=1", addKindleParam)
+		addURL += fmt.Sprintf("&%s=1", common.AddKindleParam)
 	}
 	return "javascript:{window.location.href=\"" + addURL + "\";};void(0);"
 }
 
 func (h handler) serveTemplate(w http.ResponseWriter, t string, d interface{}, fm template.FuncMap) {
-	if err := writeTemplate(w, h.cfg, t, d, fm); err != nil {
+	if err := common.WriteTemplate(w, h.cfg, t, d, fm); err != nil {
 		http.Error(w, fmt.Sprintf("Template error: %v", err), http.StatusInternalServerError)
 	}
 }
@@ -70,14 +71,14 @@ func (h handler) isAuthenticated(r *http.Request) bool {
 }
 
 func (h handler) isFriend(r *http.Request) bool {
-	return len(h.cfg.FriendLocalToken) > 0 && r.FormValue(tokenParam) == h.cfg.FriendLocalToken
+	return len(h.cfg.FriendLocalToken) > 0 && r.FormValue(common.TokenParam) == h.cfg.FriendLocalToken
 }
 
 func (h handler) handleAdd(w http.ResponseWriter, r *http.Request) {
-	u := r.FormValue(addURLParam)
+	u := r.FormValue(common.AddURLParam)
 	if len(u) > 0 {
 		isFriend := h.isFriend(r)
-		if !isFriend && r.FormValue(tokenParam) != h.getAddToken() {
+		if !isFriend && r.FormValue(common.TokenParam) != h.getAddToken() {
 			h.cfg.Logger.Printf("Bad or missing token in add request from %v\n", r.RemoteAddr)
 			http.Error(w, "Invalid token", http.StatusForbidden)
 			return
@@ -94,7 +95,7 @@ func (h handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Failed to add to database: %v", err), http.StatusInternalServerError)
 			return
 		}
-		if r.FormValue(addKindleParam) == "1" {
+		if r.FormValue(common.AddKindleParam) == "1" {
 			if err = h.proc.SendToKindle(pi.Id); err != nil {
 				h.cfg.Logger.Println(err)
 				http.Error(w, fmt.Sprintf("Failed to send to Kindle: %v", err), http.StatusInternalServerError)
@@ -103,19 +104,19 @@ func (h handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if isFriend {
-			writeHeader(w, h.cfg, h.getStylesheets(), "Added page", "", "")
+			common.WriteHeader(w, h.cfg, h.getStylesheets(), "Added page", "", "")
 			h.serveTemplate(w, `
   <body>
 	<p>Successfully added {{.URL}}!
   </body>
 </html>`, struct{ URL string }{URL: u}, template.FuncMap{})
 		} else {
-			http.Redirect(w, r, h.cfg.GetPath(pagesURLPath, pi.Id), http.StatusFound)
+			http.Redirect(w, r, h.cfg.GetPath(common.PagesURLPath, pi.Id), http.StatusFound)
 		}
 		return
 	}
 
-	writeHeader(w, h.cfg, h.getStylesheets(), "Add", "", "")
+	common.WriteHeader(w, h.cfg, h.getStylesheets(), "Add", "", "")
 	h.serveTemplate(w, `
   <body>
     <form method="post">
@@ -133,12 +134,12 @@ func (h handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) handleArchive(w http.ResponseWriter, r *http.Request) {
-	pi, err := h.db.getPage(r.FormValue(idParam))
+	pi, err := h.db.getPage(r.FormValue(common.IDParam))
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Unable to find page: %v", err), http.StatusBadRequest)
 		return
 	}
-	if len(pi.Token) > 0 && r.FormValue(tokenParam) != pi.Token {
+	if len(pi.Token) > 0 && r.FormValue(common.TokenParam) != pi.Token {
 		h.cfg.Logger.Printf("Bad or missing token in archive request from %v\n", r.RemoteAddr)
 		http.Error(w, "Invalid token", http.StatusBadRequest)
 		return
@@ -148,16 +149,16 @@ func (h handler) handleArchive(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to toggle archived state: %v", err), http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, r.FormValue(redirectParam), http.StatusFound)
+	http.Redirect(w, r, r.FormValue(common.RedirectParam), http.StatusFound)
 }
 
 func (h handler) handleKindle(w http.ResponseWriter, r *http.Request) {
-	pi, err := h.db.getPage(r.FormValue(idParam))
+	pi, err := h.db.getPage(r.FormValue(common.IDParam))
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Unable to find page: %v", err), http.StatusBadRequest)
 		return
 	}
-	if len(pi.Token) > 0 && r.FormValue(tokenParam) != pi.Token {
+	if len(pi.Token) > 0 && r.FormValue(common.TokenParam) != pi.Token {
 		h.cfg.Logger.Printf("Bad or missing token in kindle request from %v\n", r.RemoteAddr)
 		http.Error(w, "Invalid token", http.StatusBadRequest)
 		return
@@ -167,12 +168,12 @@ func (h handler) handleKindle(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to send to Kindle: %v", err), http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, r.FormValue(redirectParam), http.StatusFound)
+	http.Redirect(w, r, r.FormValue(common.RedirectParam), http.StatusFound)
 }
 
 func (h handler) handleList(w http.ResponseWriter, r *http.Request) {
 	d := struct {
-		Pages                 []PageInfo
+		Pages                 []common.PageInfo
 		PagesPath             string
 		TogglePagePath        string
 		TogglePageString      string
@@ -183,8 +184,8 @@ func (h handler) handleList(w http.ResponseWriter, r *http.Request) {
 		KindleBookmarkletHref template.HTMLAttr
 		FriendBookmarkletHref template.HTMLAttr
 	}{
-		PagesPath:             h.cfg.GetPath(pagesURLPath),
-		AddPath:               h.cfg.GetPath(addURLPath),
+		PagesPath:             h.cfg.GetPath(common.PagesURLPath),
+		AddPath:               h.cfg.GetPath(common.AddURLPath),
 		ReadBookmarkletHref:   template.HTMLAttr("href=" + h.makeBookmarklet(h.cfg.BaseURL, h.getAddToken(), false)),
 		KindleBookmarkletHref: template.HTMLAttr("href=" + h.makeBookmarklet(h.cfg.BaseURL, h.getAddToken(), true)),
 	}
@@ -214,18 +215,19 @@ func (h handler) handleList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fm := template.FuncMap{
-		"host": getHost,
+		"host": common.GetHost,
 		"time": func(t int64) string { return time.Unix(t, 0).Format("Monday, Jan 2 at 15:04") },
 		"toggleURL": func(id, token string) string {
 			listPath := unarchivedListPath
 			if archived {
 				listPath = archivedListPath
 			}
-			return fmt.Sprintf("%s?%s=%s&%s=%s&%s=%s", h.cfg.GetPath(archiveURLPath), idParam, id, tokenParam, token, redirectParam, listPath)
+			return fmt.Sprintf("%s?%s=%s&%s=%s&%s=%s", h.cfg.GetPath(common.ArchiveURLPath),
+				common.IDParam, id, common.TokenParam, token, common.RedirectParam, listPath)
 		},
 	}
 
-	writeHeader(w, h.cfg, h.getStylesheets(), "aread", "", "")
+	common.WriteHeader(w, h.cfg, h.getStylesheets(), "aread", "", "")
 	h.serveTemplate(w, `
   <body>
     <p><a href="{{.ToggleListPath}}">{{.ToggleListString}}</a> - <a href="{{.AddPath}}">Add URL</a></p>
@@ -251,7 +253,7 @@ func (h handler) handleList(w http.ResponseWriter, r *http.Request) {
 func (h handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 	if len(r.FormValue("p")) > 0 {
 		if r.FormValue("u") == h.cfg.Username && r.FormValue("p") == h.cfg.Password {
-			id := getSHA1String(h.cfg.Username + "|" + h.cfg.Password + "|" + strconv.FormatInt(time.Now().UnixNano(), 10))
+			id := common.SHA1String(fmt.Sprintf("%s|%s|%d", h.cfg.Username, h.cfg.Password, time.Now().UnixNano()))
 			if err := h.db.addSession(id, r.RemoteAddr); err != nil {
 				h.cfg.Logger.Printf("Unable to insert session: %v\n", err)
 				http.Error(w, fmt.Sprintf("Unable to insert session: %v", err), http.StatusInternalServerError)
@@ -267,7 +269,7 @@ func (h handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeHeader(w, h.cfg, h.getStylesheets(), "Auth", "", "")
+	common.WriteHeader(w, h.cfg, h.getStylesheets(), "Auth", "", "")
 	h.serveTemplate(w, `
   <body>
     <form method="post">
@@ -293,37 +295,49 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reqPath = reqPath[1:]
 	}
 
-	if strings.HasPrefix(reqPath, staticURLPath+"/") {
+	if strings.HasPrefix(reqPath, common.StaticURLPath+"/") {
 		h.staticHandler.ServeHTTP(w, r)
 		return
 	}
 	if reqPath == "favicon.ico" {
-		http.Redirect(w, r, h.cfg.GetPath(staticURLPath, "favicon.ico"), http.StatusFound)
+		http.Redirect(w, r, h.cfg.GetPath(common.StaticURLPath, "favicon.ico"), http.StatusFound)
 		return
 	}
-	if reqPath == authURLPath {
+	if reqPath == common.AuthURLPath {
 		h.handleAuth(w, r)
 		return
 	}
 
 	// Everything else requires authentication.
-	if !h.isAuthenticated(r) && !(reqPath == addURLPath && h.isFriend(r)) {
+	if !h.isAuthenticated(r) && !(reqPath == common.AddURLPath && h.isFriend(r)) {
 		h.cfg.Logger.Printf("Unauthenticated request from %v\n", r.RemoteAddr)
-		http.Redirect(w, r, h.cfg.GetPath(authURLPath+"?"+redirectParam+"="+r.URL.Path), http.StatusFound)
+		path := h.cfg.GetPath(fmt.Sprintf("%s?%s=%s", common.AuthURLPath, common.RedirectParam, r.URL.Path))
+		http.Redirect(w, r, path, http.StatusFound)
 		return
 	}
 
 	if len(reqPath) == 0 {
 		h.handleList(w, r)
-	} else if reqPath == addURLPath {
+	} else if reqPath == common.AddURLPath {
 		h.handleAdd(w, r)
-	} else if reqPath == archiveURLPath {
+	} else if reqPath == common.ArchiveURLPath {
 		h.handleArchive(w, r)
-	} else if reqPath == kindleURLPath {
+	} else if reqPath == common.KindleURLPath {
 		h.handleKindle(w, r)
-	} else if strings.HasPrefix(reqPath, pagesURLPath+"/") {
+	} else if strings.HasPrefix(reqPath, common.PagesURLPath+"/") {
 		h.pageHandler.ServeHTTP(w, r)
 	} else {
 		http.Error(w, "Bogus request", http.StatusBadRequest)
 	}
+}
+
+func joinURLAndPath(url, path string) string {
+	// Can't use path.Join, as it changes e.g. "https://" to "https:/".
+	if strings.HasSuffix(url, "/") {
+		url = url[0 : len(url)-1]
+	}
+	if strings.HasPrefix(path, "/") {
+		path = path[1:len(path)]
+	}
+	return url + "/" + path
 }
