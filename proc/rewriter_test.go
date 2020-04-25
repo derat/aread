@@ -1,4 +1,4 @@
-package main
+package proc
 
 import (
 	"io/ioutil"
@@ -35,7 +35,7 @@ func TestBasic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	output, imageURLs, err := rw.RewriteContent(string(input), inputURL)
+	output, imageURLs, err := rw.rewriteContent(string(input), inputURL)
 
 	// Whitespace is a pain. Ignore empty lines.
 	emptyLineRegexp := regexp.MustCompile("\n\\s*\n")

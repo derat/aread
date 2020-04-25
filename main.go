@@ -10,7 +10,8 @@ import (
 	"path/filepath"
 
 	"github.com/derat/aread/common"
-	"github.com/derat/aread/database"
+	"github.com/derat/aread/db"
+	"github.com/derat/aread/proc"
 )
 
 func main() {
@@ -42,10 +43,10 @@ func main() {
 		cfg.Verbose = true
 	}
 
-	p := newProcessor(cfg)
+	p := proc.New(cfg)
 
 	if daemon {
-		db, err := database.New(cfg.Database)
+		db, err := db.New(cfg.Database)
 		if err != nil {
 			logger.Fatalln(err)
 		}

@@ -1,4 +1,4 @@
-package main
+package proc
 
 import (
 	"log"
@@ -14,7 +14,7 @@ const (
 )
 
 func TestProcessor_RewriteURL(t *testing.T) {
-	p := newProcessor(&common.Config{
+	p := New(&common.Config{
 		URLPatternsFile: urlPatternsFile,
 		Logger:          log.New(os.Stderr, "", log.LstdFlags),
 	})
@@ -34,7 +34,7 @@ func TestProcessor_RewriteURL(t *testing.T) {
 }
 
 func TestProcessor_CheckContent(t *testing.T) {
-	p := newProcessor(&common.Config{
+	p := New(&common.Config{
 		BadContentFile: badContentFile,
 		Logger:         log.New(os.Stderr, "", log.LstdFlags),
 	})

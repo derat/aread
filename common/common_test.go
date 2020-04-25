@@ -4,24 +4,6 @@ import (
 	"testing"
 )
 
-func TestJoinURLAndPath(t *testing.T) {
-	for _, tc := range []struct {
-		url    string
-		path   string
-		output string
-	}{
-		{"https://www.example.com", "page.html", "https://www.example.com/page.html"},
-		{"https://www.example.com/", "page.html", "https://www.example.com/page.html"},
-		{"https://www.example.com", "/page.html", "https://www.example.com/page.html"},
-		{"https://www.example.com/", "/page.html", "https://www.example.com/page.html"},
-	} {
-		out := joinURLAndPath(tc.url, tc.path)
-		if out != tc.output {
-			t.Errorf("joined %q and %q to %q instead of %q", tc.url, tc.path, out, tc.output)
-		}
-	}
-}
-
 func TestGetLocalImageFilename(t *testing.T) {
 	for _, tc := range []struct {
 		url            string
@@ -38,10 +20,10 @@ func TestGetLocalImageFilename(t *testing.T) {
 		{"http://a.com/img", ".jpg"},
 		{"http://a.com/img.foo", ".jpg"},
 	} {
-		expected := getSHA1String(tc.url) + tc.expectedSuffix
-		actual := getLocalImageFilename(tc.url)
+		expected := SHA1String(tc.url) + tc.expectedSuffix
+		actual := LocalImageFilename(tc.url)
 		if actual != expected {
-			t.Errorf("got local filename %q for %v, expected %v", actual, tc.url, expected)
+			t.Errorf("LocalImageFilename(%q) = %q; want %q", tc.url, actual, expected)
 		}
 	}
 }

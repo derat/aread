@@ -1,4 +1,4 @@
-package main
+package proc
 
 import (
 	"bytes"
@@ -61,19 +61,19 @@ func getFaviconURL(origURL string) (string, error) {
 	return u.String(), nil
 }
 
-type processor struct {
+type Processor struct {
 	cfg    *common.Config
 	client *http.Client
 }
 
-func newProcessor(cfg *common.Config) *processor {
-	return &processor{
+func New(cfg *common.Config) *Processor {
+	return &Processor{
 		cfg:    cfg,
 		client: &http.Client{},
 	}
 }
 
-func (p *processor) rewriteURL(origURL string) (newURL string, err error) {
+func (p *Processor) rewriteURL(origURL string) (newURL string, err error) {
 	if len(p.cfg.URLPatternsFile) == 0 {
 		return origURL, nil
 	}
@@ -99,7 +99,7 @@ func (p *processor) rewriteURL(origURL string) (newURL string, err error) {
 	return
 }
 
-func (p *processor) openURL(url string, head *http.Header, maxRetries int) (io.ReadCloser, error) {
+func (p *Processor) openURL(url string, head *http.Header, maxRetries int) (io.ReadCloser, error) {
 	for i := 0; ; i++ {
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
@@ -130,7 +130,7 @@ func (p *processor) openURL(url string, head *http.Header, maxRetries int) (io.R
 	}
 }
 
-func (p *processor) downloadImages(urls map[string]string, dir string) (totalBytes int64) {
+func (p *Processor) downloadImages(urls map[string]string, dir string) (totalBytes int64) {
 	ic := newImageCleaner(p.cfg)
 	c := make(chan int64)
 	for filename, url := range urls {
@@ -158,7 +158,7 @@ func (p *processor) downloadImages(urls map[string]string, dir string) (totalByt
 				p.cfg.Logger.Printf("Unable to write image %v to %v: %v\n", url, path, err)
 				return
 			}
-			if err = ic.Clean(path); err != nil {
+			if err = ic.clean(path); err != nil {
 				p.cfg.Logger.Printf("Unable to process image %v: %v\n", path, err)
 			}
 		}(filename, url)
@@ -172,7 +172,7 @@ func (p *processor) downloadImages(urls map[string]string, dir string) (totalByt
 	return totalBytes
 }
 
-func (p *processor) checkContent(pi common.PageInfo, content string) error {
+func (p *Processor) checkContent(pi common.PageInfo, content string) error {
 	if len(p.cfg.BadContentFile) == 0 {
 		return nil
 	}
@@ -200,7 +200,7 @@ func (p *processor) checkContent(pi common.PageInfo, content string) error {
 	return nil
 }
 
-func (p *processor) downloadContent(pi common.PageInfo, dir string) (title string, err error) {
+func (p *Processor) downloadContent(pi common.PageInfo, dir string) (title string, err error) {
 	b, err := exec.Command(p.cfg.ParserPath, pi.OriginalURL).Output()
 	if err != nil {
 		return "", err
@@ -272,7 +272,7 @@ func (p *processor) downloadContent(pi common.PageInfo, dir string) (title strin
 	// filename -> URL
 	var imageURLs map[string]string
 	rw := rewriter{p.cfg}
-	content, imageURLs, err = rw.RewriteContent(content, pi.OriginalURL)
+	content, imageURLs, err = rw.rewriteContent(content, pi.OriginalURL)
 	if err != nil {
 		return title, fmt.Errorf("unable to process content: %v", err)
 	}
@@ -342,7 +342,7 @@ func (p *processor) downloadContent(pi common.PageInfo, dir string) (title strin
 	return title, nil
 }
 
-func (p *processor) buildDoc(dir string) error {
+func (p *Processor) buildDoc(dir string) error {
 	c := exec.Command("docker", "run", "-v", dir+":/source", "jagregory/kindlegen", kindleFile, "-o", docFile)
 	o, err := c.CombinedOutput()
 	p.cfg.Logger.Printf("kindlegen output:%s", strings.Replace("\n"+string(o), "\n", "\n  ", -1))
@@ -356,7 +356,7 @@ func (p *processor) buildDoc(dir string) error {
 }
 
 // Based on https://gist.github.com/rmulley/6603544.
-func (p *processor) sendMail(docPath string) error {
+func (p *Processor) sendMail(docPath string) error {
 	data, err := ioutil.ReadFile(docPath)
 	if err != nil {
 		return err
@@ -422,7 +422,7 @@ func (p *processor) sendMail(docPath string) error {
 	return nil
 }
 
-func (p *processor) ProcessURL(contentURL string, fromFriend bool) (pi common.PageInfo, err error) {
+func (p *Processor) ProcessURL(contentURL string, fromFriend bool) (pi common.PageInfo, err error) {
 	if contentURL, err = p.rewriteURL(contentURL); err != nil {
 		return pi, fmt.Errorf("failed rewriting URL: %v", err)
 	}
@@ -452,7 +452,7 @@ func (p *processor) ProcessURL(contentURL string, fromFriend bool) (pi common.Pa
 	return pi, nil
 }
 
-func (p *processor) SendToKindle(id string) error {
+func (p *Processor) SendToKindle(id string) error {
 	if matched, err := regexp.Match("^[a-f0-9]+$", []byte(id)); err != nil {
 		return err
 	} else if !matched {

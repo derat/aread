@@ -1,4 +1,4 @@
-package main
+package proc
 
 import (
 	"fmt"
@@ -46,7 +46,7 @@ func runClean(w, h int, clr color.Color, maxw, maxh int) (image.Image, error) {
 		MaxImageWidth:  maxw,
 		MaxImageHeight: maxh,
 	})
-	if err := ic.Clean(p); err != nil {
+	if err := ic.clean(p); err != nil {
 		return nil, err
 	}
 

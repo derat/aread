@@ -8,20 +8,21 @@ import (
 	"time"
 
 	"github.com/derat/aread/common"
-	"github.com/derat/aread/database"
+	"github.com/derat/aread/db"
+	"github.com/derat/aread/proc"
 )
 
 const sessionCookieName = "session"
 
 type handler struct {
 	cfg           *common.Config
-	proc          *processor
-	db            *database.DB
+	proc          *proc.Processor
+	db            *db.Database
 	staticHandler http.Handler
 	pageHandler   http.Handler
 }
 
-func newHandler(cfg *common.Config, proc *processor, db *database.DB) handler {
+func newHandler(cfg *common.Config, proc *proc.Processor, db *db.Database) handler {
 	return handler{
 		cfg:  cfg,
 		proc: proc,

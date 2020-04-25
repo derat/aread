@@ -1,4 +1,4 @@
-package main
+package proc
 
 import (
 	"image"
@@ -95,7 +95,7 @@ func (c *imageCleaner) updateImage(src image.Image, imgFmt, filename string) err
 	return err
 }
 
-func (c *imageCleaner) Clean(filename string) error {
+func (c *imageCleaner) clean(filename string) error {
 	c.cond.L.Lock()
 	for c.procs >= c.cfg.MaxImageProcs {
 		c.cond.Wait()

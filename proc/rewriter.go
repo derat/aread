@@ -1,4 +1,4 @@
-package main
+package proc
 
 import (
 	"fmt"
@@ -137,9 +137,9 @@ func (rw *rewriter) fixImageURL(url string) string {
 	return newURL
 }
 
-// RewriteContent rewrites HTML that is passed to it. imageURLs maps from local
+// rewriteContent rewrites HTML that is passed to it. imageURLs maps from local
 // filename to the original remote image URL.
-func (rw *rewriter) RewriteContent(input, url string) (content string, imageURLs map[string]string, err error) {
+func (rw *rewriter) rewriteContent(input, url string) (content string, imageURLs map[string]string, err error) {
 	hiddenIds, hiddenTags, err := rw.readHiddenTagsFile(url)
 	if err != nil {
 		return "", nil, err
