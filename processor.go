@@ -156,7 +156,7 @@ func (p *Processor) downloadImages(urls map[string]string, dir string) (totalByt
 				p.cfg.Logger.Printf("Unable to write image %v to %v: %v\n", url, path, err)
 				return
 			}
-			if err = ic.ProcessImage(path); err != nil {
+			if err = ic.Clean(path); err != nil {
 				p.cfg.Logger.Printf("Unable to process image %v: %v\n", path, err)
 			}
 		}(filename, url)

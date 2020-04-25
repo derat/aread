@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-func runProcessImage(w, h int, clr color.Color, maxw, maxh int) (image.Image, error) {
+func runClean(w, h int, clr color.Color, maxw, maxh int) (image.Image, error) {
 	td, err := ioutil.TempDir("", "image_cleaner_test.")
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func runProcessImage(w, h int, clr color.Color, maxw, maxh int) (image.Image, er
 		MaxImageWidth:  maxw,
 		MaxImageHeight: maxh,
 	})
-	if err := ic.ProcessImage(p); err != nil {
+	if err := ic.Clean(p); err != nil {
 		return nil, err
 	}
 
@@ -55,40 +55,40 @@ func runProcessImage(w, h int, clr color.Color, maxw, maxh int) (image.Image, er
 	return newImg, err
 }
 
-func TestProcessImage_square(t *testing.T) {
-	img, err := runProcessImage(400, 400, color.Black, 200, 200)
+func TestImageCleaner_square(t *testing.T) {
+	img, err := runClean(400, 400, color.Black, 200, 200)
 	if err != nil {
-		t.Fatal("ProcessImage failed: ", err)
+		t.Fatal("Clean failed: ", err)
 	}
 	if eb := image.Rect(0, 0, 200, 200); img.Bounds() != eb {
 		t.Errorf("got bounds %v; want %v", img.Bounds(), eb)
 	}
 }
 
-func TestProcessImage_wide(t *testing.T) {
-	img, err := runProcessImage(400, 200, color.Black, 300, 50)
+func TestImageCleaner_wide(t *testing.T) {
+	img, err := runClean(400, 200, color.Black, 300, 50)
 	if err != nil {
-		t.Fatal("ProcessImage failed: ", err)
+		t.Fatal("Clean failed: ", err)
 	}
 	if eb := image.Rect(0, 0, 100, 50); img.Bounds() != eb {
 		t.Errorf("got bounds %v; want %v", img.Bounds(), eb)
 	}
 }
 
-func TestProcessImage_tall(t *testing.T) {
-	img, err := runProcessImage(200, 400, color.Black, 25, 350)
+func TestImageCleaner_tall(t *testing.T) {
+	img, err := runClean(200, 400, color.Black, 25, 350)
 	if err != nil {
-		t.Fatal("ProcessImage failed: ", err)
+		t.Fatal("Clean failed: ", err)
 	}
 	if eb := image.Rect(0, 0, 25, 50); img.Bounds() != eb {
 		t.Errorf("got bounds %v; want %v", img.Bounds(), eb)
 	}
 }
 
-func TestProcessImage_transparent(t *testing.T) {
-	img, err := runProcessImage(200, 200, color.Transparent, 100, 100)
+func TestImageCleaner_transparent(t *testing.T) {
+	img, err := runClean(200, 200, color.Transparent, 100, 100)
 	if err != nil {
-		t.Fatal("ProcessImage failed: ", err)
+		t.Fatal("Clean failed: ", err)
 	}
 	if eb := image.Rect(0, 0, 100, 100); img.Bounds() != eb {
 		t.Errorf("got bounds %v; want %v", img.Bounds(), eb)

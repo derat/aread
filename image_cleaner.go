@@ -11,20 +11,21 @@ import (
 	"golang.org/x/image/draw"
 )
 
-type ImageCleaner struct {
-	cfg            config
-	numImageProcs  int
-	imageProcMutex sync.RWMutex
-	imageProcCond  *sync.Cond
+type imageCleaner struct {
+	cfg   config
+	procs int
+	mutex sync.RWMutex
+	cond  *sync.Cond
 }
 
-func newImageCleaner(cfg config) *ImageCleaner {
-	c := &ImageCleaner{cfg: cfg}
-	c.imageProcCond = sync.NewCond(&c.imageProcMutex)
+func newImageCleaner(cfg config) *imageCleaner {
+	c := &imageCleaner{cfg: cfg}
+	c.cond = sync.NewCond(&c.mutex)
 	return c
 }
 
-func (c *ImageCleaner) updateImage(src image.Image, imgFmt, filename string) error {
+// TODO: Break this into separate methods.
+func (c *imageCleaner) updateImage(src image.Image, imgFmt, filename string) error {
 	sb := src.Bounds()
 	needsScale := sb.Dx() > c.cfg.MaxImageWidth || sb.Dy() > c.cfg.MaxImageHeight
 	needsOpaque := (src.ColorModel() == color.RGBAModel && !src.(*image.RGBA).Opaque()) ||
@@ -92,19 +93,19 @@ func (c *ImageCleaner) updateImage(src image.Image, imgFmt, filename string) err
 	return err
 }
 
-func (c *ImageCleaner) ProcessImage(filename string) error {
-	c.imageProcCond.L.Lock()
-	for c.numImageProcs >= c.cfg.MaxImageProcs {
-		c.imageProcCond.Wait()
+func (c *imageCleaner) Clean(filename string) error {
+	c.cond.L.Lock()
+	for c.procs >= c.cfg.MaxImageProcs {
+		c.cond.Wait()
 	}
-	c.numImageProcs++
-	c.imageProcCond.L.Unlock()
+	c.procs++
+	c.cond.L.Unlock()
 
 	defer func() {
-		c.imageProcCond.L.Lock()
-		c.numImageProcs--
-		c.imageProcCond.L.Unlock()
-		c.imageProcCond.Signal()
+		c.cond.L.Lock()
+		c.procs--
+		c.cond.L.Unlock()
+		c.cond.Signal()
 	}()
 
 	f, err := os.Open(filename)
