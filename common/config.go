@@ -7,32 +7,32 @@ import (
 )
 
 type Config struct {
-	ParserPath        string
-	BaseURL           string
-	StaticDir         string
-	PageDir           string
-	URLPatternsFile   string
-	BadContentFile    string
-	HiddenTagsFile    string
-	Database          string
-	MailServer        string
-	Recipient         string
-	Sender            string
-	Username          string
-	Password          string
-	FriendBaseURL     string
-	FriendRemoteToken string
-	FriendLocalToken  string
-	FriendTitlePrefix string
-	DownloadImages    bool
-	MaxImageWidth     int
-	MaxImageHeight    int
-	MaxImageBytes     int64
-	JpegQuality       int
-	MaxImageProcs     int
-	DownloadFavicons  bool
-	MaxListSize       int
-	Verbose           bool
+	ParserPath        string `json:"parserPath"`
+	BaseURL           string `json:"baseUrl"`
+	StaticDir         string `json:"staticDir"`
+	PageDir           string `json:"pageDir"`
+	URLPatternsFile   string `json:"urlPatternsFile"`
+	BadContentFile    string `json:"badContentFile"`
+	HiddenTagsFile    string `json:"hiddenTagsFile"`
+	Database          string `json:"database"`
+	MailServer        string `json:"mailServer"`
+	Recipient         string `json:"recipient"`
+	Sender            string `json:"sender"`
+	Username          string `json:"username"`
+	Password          string `json:"password"`
+	FriendBaseURL     string `json:"friendBaseUrl"`
+	FriendRemoteToken string `json:"friendRemoteToken"`
+	FriendLocalToken  string `json:"friendLocalToken"`
+	FriendTitlePrefix string `json:"friendTitlePrefix"`
+	DownloadImages    bool   `json:"downloadImages"`
+	MaxImageWidth     int    `json:"maxImageWidth"`
+	MaxImageHeight    int    `json:"maxImageHeight"`
+	MaxImageBytes     int64  `json:"maxImageBytes"`
+	JPEGQuality       int    `json:"jpegQuality"`
+	MaxImageProcs     int    `json:"maxImageProcs"`
+	DownloadFavicons  bool   `json:"downloadFavicons"`
+	MaxListSize       int    `json:"maxListSize"`
+	Verbose           bool   `json:"verbose"`
 	Logger            *log.Logger
 }
 
@@ -44,7 +44,7 @@ func ReadConfig(p string, lg *log.Logger) (*Config, error) {
 		MaxImageWidth:  1024,
 		MaxImageHeight: 768,
 		MaxImageBytes:  1 * 1024 * 1024,
-		JpegQuality:    85,
+		JPEGQuality:    85,
 		MaxImageProcs:  3,
 		MaxListSize:    50,
 	}

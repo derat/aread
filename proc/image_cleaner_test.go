@@ -39,7 +39,7 @@ func runClean(w, h int, clr color.Color, maxw, maxh int) (image.Image, error) {
 	}
 
 	ic := newImageCleaner(&common.Config{
-		JpegQuality:    90,
+		JPEGQuality:    90,
 		Logger:         log.New(os.Stderr, "", log.LstdFlags),
 		MaxImageBytes:  256 * 1024,
 		MaxImageProcs:  2,

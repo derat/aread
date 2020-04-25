@@ -88,7 +88,7 @@ func (c *imageCleaner) updateImage(src image.Image, imgFmt, filename string) err
 	case "png":
 		err = png.Encode(f, dst)
 	case "jpeg":
-		err = jpeg.Encode(f, dst, &jpeg.Options{Quality: c.cfg.JpegQuality})
+		err = jpeg.Encode(f, dst, &jpeg.Options{Quality: c.cfg.JPEGQuality})
 	default:
 		c.cfg.Logger.Fatalf("Unhandled image format %v for %v", imgFmt, filename)
 	}
