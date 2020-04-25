@@ -14,12 +14,12 @@ import (
 
 const (
 	sessionCookieName = "session"
-	addUrlPath        = "add"
-	archiveUrlPath    = "archive"
-	authUrlPath       = "auth"
-	kindleUrlPath     = "kindle"
-	staticUrlPath     = "static"
-	pagesUrlPath      = "pages"
+	addURLPath        = "add"
+	archiveURLPath    = "archive"
+	authURLPath       = "auth"
+	kindleURLPath     = "kindle"
+	staticURLPath     = "static"
+	pagesURLPath      = "pages"
 	appCssFile        = "app.css"
 	commonCssFile     = "common.css"
 	pageCssFile       = "page.css"
@@ -44,7 +44,7 @@ var supportedImageExtensions map[string]bool = map[string]bool{
 
 type PageInfo struct {
 	Id          string
-	OriginalUrl string
+	OriginalURL string
 	Title       string
 	TimeAdded   int64 // time_t
 	Token       string
@@ -84,21 +84,21 @@ func copyFile(dest, src string) error {
 	return d.Close()
 }
 
-func writeTemplate(w io.Writer, c Config, t string, d interface{}, fm template.FuncMap) error {
+func writeTemplate(w io.Writer, cfg config, t string, d interface{}, fm template.FuncMap) error {
 	tmpl, err := template.New("").Funcs(fm).Parse(t)
 	if err != nil {
-		c.Logger.Printf("Unable to parse template: %v\n", err)
+		cfg.Logger.Printf("Unable to parse template: %v\n", err)
 		return err
 	}
 	if err = tmpl.Execute(w, d); err != nil {
-		c.Logger.Printf("Unable to execute template: %v\n", err)
+		cfg.Logger.Printf("Unable to execute template: %v\n", err)
 		return err
 	}
 	return nil
 }
 
 // Writes everything up to the closing </head> tag.
-func writeHeader(w io.Writer, c Config, stylesheets []string, title, favicon, author string) {
+func writeHeader(w io.Writer, cfg config, stylesheets []string, title, favicon, author string) {
 	d := struct {
 		Title       string
 		Stylesheets []string
@@ -107,7 +107,7 @@ func writeHeader(w io.Writer, c Config, stylesheets []string, title, favicon, au
 	}{
 		Title:       title,
 		Stylesheets: stylesheets,
-		Favicon:     c.GetPath(staticUrlPath, faviconFile),
+		Favicon:     cfg.GetPath(staticURLPath, faviconFile),
 		Author:      author,
 	}
 
@@ -126,8 +126,8 @@ func writeHeader(w io.Writer, c Config, stylesheets []string, title, favicon, au
     <link rel="icon" href="{{.Favicon}}"/>
   </head>
 `
-	if err := writeTemplate(w, c, t, d, template.FuncMap{}); err != nil {
-		c.Logger.Println(err)
+	if err := writeTemplate(w, cfg, t, d, template.FuncMap{}); err != nil {
+		cfg.Logger.Println(err)
 		panic(err)
 	}
 }
@@ -141,7 +141,7 @@ func getLocalImageFilename(url string) string {
 	return getSha1String(url) + ext
 }
 
-func readJsonFile(path string, out interface{}) error {
+func readJSONFile(path string, out interface{}) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -154,7 +154,7 @@ func readJsonFile(path string, out interface{}) error {
 	return nil
 }
 
-func joinUrlAndPath(url, path string) string {
+func joinURLAndPath(url, path string) string {
 	// Can't use path.Join, as it changes e.g. "https://" to "https:/".
 	if strings.HasSuffix(url, "/") {
 		url = url[0 : len(url)-1]

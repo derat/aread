@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestJoinUrlAndPath(t *testing.T) {
+func TestJoinURLAndPath(t *testing.T) {
 	for _, tc := range []struct {
 		url    string
 		path   string
@@ -15,7 +15,7 @@ func TestJoinUrlAndPath(t *testing.T) {
 		{"https://www.example.com", "/page.html", "https://www.example.com/page.html"},
 		{"https://www.example.com/", "/page.html", "https://www.example.com/page.html"},
 	} {
-		out := joinUrlAndPath(tc.url, tc.path)
+		out := joinURLAndPath(tc.url, tc.path)
 		if out != tc.output {
 			t.Errorf("joined %q and %q to %q instead of %q", tc.url, tc.path, out, tc.output)
 		}

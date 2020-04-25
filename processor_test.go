@@ -11,36 +11,34 @@ const (
 	urlPatternsFile = "testdata/url_patterns.json"
 )
 
-func TestRewriteUrl(t *testing.T) {
-	cfg := Config{
-		UrlPatternsFile: urlPatternsFile,
+func TestRewriteURL(t *testing.T) {
+	p := newProcessor(config{
+		URLPatternsFile: urlPatternsFile,
 		Logger:          log.New(os.Stderr, "", log.LstdFlags),
-	}
-	p := newProcessor(cfg)
+	})
 
 	for _, tc := range []struct {
-		OrigUrl string
-		NewUrl  string
+		OrigURL string
+		NewURL  string
 	}{
 		{"http://m.example.com/index.html?r=1", "http://example.com/index.html"},
 	} {
-		if url, err := p.rewriteUrl(tc.OrigUrl); err != nil {
-			t.Errorf("got error when rewriting %q: %v", tc.OrigUrl, err)
-		} else if url != tc.NewUrl {
-			t.Errorf("didn't rewrite %q correctly:\nexpected: %q\n  actual: %q", tc.OrigUrl, tc.NewUrl, url)
+		if url, err := p.rewriteURL(tc.OrigURL); err != nil {
+			t.Errorf("got error when rewriting %q: %v", tc.OrigURL, err)
+		} else if url != tc.NewURL {
+			t.Errorf("didn't rewrite %q correctly:\nexpected: %q\n  actual: %q", tc.OrigURL, tc.NewURL, url)
 		}
 	}
 }
 
 func TestCheckContent(t *testing.T) {
-	cfg := Config{
+	p := newProcessor(config{
 		BadContentFile: badContentFile,
 		Logger:         log.New(os.Stderr, "", log.LstdFlags),
-	}
-	p := newProcessor(cfg)
+	})
 
 	for _, tc := range []struct {
-		Url     string
+		URL     string
 		Content string
 		Okay    bool
 	}{
@@ -49,11 +47,11 @@ func TestCheckContent(t *testing.T) {
 		{"http://www.example.net/bad.html", "<html><body><h1>Go away.</h1></body></html>", true},
 		{"http://www.example.net/really_bad.html", "<html><body><h1>Really go away.</h1></body></html>", false},
 	} {
-		err := p.checkContent(PageInfo{OriginalUrl: tc.Url}, tc.Content)
+		err := p.checkContent(PageInfo{OriginalURL: tc.URL}, tc.Content)
 		if tc.Okay && err != nil {
-			t.Errorf("got error for %q: %v", tc.Url, err)
+			t.Errorf("got error for %q: %v", tc.URL, err)
 		} else if !tc.Okay && err == nil {
-			t.Errorf("didn't get expected error for %q", tc.Url)
+			t.Errorf("didn't get expected error for %q", tc.URL)
 		}
 	}
 }

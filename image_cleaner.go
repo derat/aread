@@ -12,13 +12,13 @@ import (
 )
 
 type ImageCleaner struct {
-	cfg            Config
+	cfg            config
 	numImageProcs  int
 	imageProcMutex sync.RWMutex
 	imageProcCond  *sync.Cond
 }
 
-func newImageCleaner(cfg Config) *ImageCleaner {
+func newImageCleaner(cfg config) *ImageCleaner {
 	c := &ImageCleaner{cfg: cfg}
 	c.imageProcCond = sync.NewCond(&c.imageProcMutex)
 	return c

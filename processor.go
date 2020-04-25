@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+
 	// Handle Comodo certs: http://bridge.grumpy-troll.org/2014/05/golang-tls-comodo/
 	_ "crypto/sha512"
 	"encoding/base64"
@@ -47,8 +48,8 @@ func getStringValue(object *map[string]interface{}, name string) (string, error)
 	return s, nil
 }
 
-func getFaviconUrl(origUrl string) (string, error) {
-	u, err := url.Parse(origUrl)
+func getFaviconURL(origURL string) (string, error) {
+	u, err := url.Parse(origURL)
 	if err != nil {
 		return "", err
 	}
@@ -59,27 +60,27 @@ func getFaviconUrl(origUrl string) (string, error) {
 }
 
 type Processor struct {
-	cfg    Config
+	cfg    config
 	client *http.Client
 }
 
-func newProcessor(cfg Config) *Processor {
+func newProcessor(cfg config) *Processor {
 	p := &Processor{}
 	p.cfg = cfg
 	p.client = &http.Client{}
 	return p
 }
 
-func (p *Processor) rewriteUrl(origUrl string) (newUrl string, err error) {
-	if len(p.cfg.UrlPatternsFile) == 0 {
-		return origUrl, nil
+func (p *Processor) rewriteURL(origURL string) (newURL string, err error) {
+	if len(p.cfg.URLPatternsFile) == 0 {
+		return origURL, nil
 	}
 
 	pats := make([][]string, 0)
-	if err = readJsonFile(p.cfg.UrlPatternsFile, &pats); err != nil {
+	if err = readJSONFile(p.cfg.URLPatternsFile, &pats); err != nil {
 		return
 	}
-	newUrl = origUrl
+	newURL = origURL
 	for i, entry := range pats {
 		if len(entry) != 2 {
 			return "", fmt.Errorf("entry %v had %v element(s); should be [regexp, repl]", i, len(entry))
@@ -88,15 +89,15 @@ func (p *Processor) rewriteUrl(origUrl string) (newUrl string, err error) {
 		if err != nil {
 			return "", fmt.Errorf("failed to compile regexp %q: %v", entry[0], err)
 		}
-		newUrl = re.ReplaceAllString(newUrl, entry[1])
+		newURL = re.ReplaceAllString(newURL, entry[1])
 	}
-	if newUrl != origUrl {
-		p.cfg.Logger.Printf("Rewrote %v to %v\n", origUrl, newUrl)
+	if newURL != origURL {
+		p.cfg.Logger.Printf("Rewrote %v to %v\n", origURL, newURL)
 	}
 	return
 }
 
-func (p *Processor) openUrl(url string, head *http.Header, maxRetries int) (io.ReadCloser, error) {
+func (p *Processor) openURL(url string, head *http.Header, maxRetries int) (io.ReadCloser, error) {
 	for i := 0; ; i++ {
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
@@ -135,7 +136,7 @@ func (p *Processor) downloadImages(urls map[string]string, dir string) (totalByt
 			var bytes int64 = 0
 			defer func() { c <- bytes }()
 
-			body, err := p.openUrl(url, nil, 0)
+			body, err := p.openURL(url, nil, 0)
 			if err != nil {
 				p.cfg.Logger.Printf("Failed to download image %v: %v\n", url, err)
 				return
@@ -175,7 +176,7 @@ func (p *Processor) checkContent(pi PageInfo, content string) error {
 	}
 
 	pats := make([][]string, 0)
-	if err := readJsonFile(p.cfg.BadContentFile, &pats); err != nil {
+	if err := readJSONFile(p.cfg.BadContentFile, &pats); err != nil {
 		return err
 	}
 	for i, entry := range pats {
@@ -190,7 +191,7 @@ func (p *Processor) checkContent(pi PageInfo, content string) error {
 		if err != nil {
 			return fmt.Errorf("failed to compile content regexp %q: %v", entry[1], err)
 		}
-		if urlRegexp.MatchString(pi.OriginalUrl) && contentRegexp.MatchString(content) {
+		if urlRegexp.MatchString(pi.OriginalURL) && contentRegexp.MatchString(content) {
 			return fmt.Errorf("matched %q", entry[1])
 		}
 	}
@@ -198,7 +199,7 @@ func (p *Processor) checkContent(pi PageInfo, content string) error {
 }
 
 func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err error) {
-	b, err := exec.Command(p.cfg.ParserPath, pi.OriginalUrl).Output()
+	b, err := exec.Command(p.cfg.ParserPath, pi.OriginalURL).Output()
 	if err != nil {
 		return "", err
 	}
@@ -211,7 +212,7 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 	d := struct {
 		Content     template.HTML
 		ForWeb      bool
-		Url         string
+		URL         string
 		Host        string
 		Title       string
 		Author      string
@@ -220,10 +221,10 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 		KindlePath  string
 		ListPath    string
 	}{
-		Url:         pi.OriginalUrl,
-		Host:        getHost(pi.OriginalUrl),
-		ArchivePath: p.cfg.GetPath(archiveUrlPath + queryParams),
-		KindlePath:  p.cfg.GetPath(kindleUrlPath + queryParams),
+		URL:         pi.OriginalURL,
+		Host:        getHost(pi.OriginalURL),
+		ArchivePath: p.cfg.GetPath(archiveURLPath + queryParams),
+		KindlePath:  p.cfg.GetPath(kindleURLPath + queryParams),
 		ListPath:    p.cfg.GetPath(),
 	}
 
@@ -241,7 +242,7 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 
 	title, _ = getStringValue(&o, "title")
 	if title == "" {
-		title = pi.OriginalUrl
+		title = pi.OriginalURL
 	}
 	if pi.FromFriend {
 		title = p.cfg.FriendTitlePrefix + title
@@ -258,15 +259,15 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 	}
 
 	// TODO: Does this ever get set?
-	nextPageUrl, _ := getStringValue(&o, "next_page_url")
-	if nextPageUrl != "" {
-		p.cfg.Logger.Printf("Got next page URL %v", nextPageUrl)
+	nextPageURL, _ := getStringValue(&o, "next_page_url")
+	if nextPageURL != "" {
+		p.cfg.Logger.Printf("Got next page URL %v", nextPageURL)
 	}
 
 	// filename -> URL
-	var imageUrls map[string]string
+	var imageURLs map[string]string
 	rewriter := Rewriter{p.cfg}
-	content, imageUrls, err = rewriter.RewriteContent(content, pi.OriginalUrl)
+	content, imageURLs, err = rewriter.RewriteContent(content, pi.OriginalURL)
 	if err != nil {
 		return title, fmt.Errorf("unable to process content: %v", err)
 	}
@@ -274,17 +275,17 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 
 	var faviconFilename string
 	if p.cfg.DownloadFavicons {
-		if faviconUrl, err := getFaviconUrl(pi.OriginalUrl); err != nil {
-			p.cfg.Logger.Printf("Unable to generate favicon URL for %v: %v", pi.OriginalUrl, err)
+		if faviconURL, err := getFaviconURL(pi.OriginalURL); err != nil {
+			p.cfg.Logger.Printf("Unable to generate favicon URL for %v: %v", pi.OriginalURL, err)
 		} else {
-			faviconFilename = getLocalImageFilename(faviconUrl)
-			imageUrls[faviconFilename] = faviconUrl
+			faviconFilename = getLocalImageFilename(faviconURL)
+			imageURLs[faviconFilename] = faviconURL
 		}
 	}
 
-	if p.cfg.DownloadImages && len(imageUrls) > 0 {
-		totalBytes := p.downloadImages(imageUrls, dir)
-		p.cfg.Logger.Printf("Downloaded %v image(s) totalling %v byte(s)\n", len(imageUrls), totalBytes)
+	if p.cfg.DownloadImages && len(imageURLs) > 0 {
+		totalBytes := p.downloadImages(imageURLs, dir)
+		p.cfg.Logger.Printf("Downloaded %v image(s) totalling %v byte(s)\n", len(imageURLs), totalBytes)
 	}
 	if faviconFilename != "" {
 		if _, err := os.Stat(filepath.Join(dir, faviconFilename)); err != nil {
@@ -310,7 +311,7 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 		t := `
   <body>
     <h1 id="title-header">{{.Title}}</h1>
-    <a href="{{.Url}}">{{.Host}}</a><br/>
+    <a href="{{.URL}}">{{.Host}}</a><br/>
     {{if .Author}}<b>By {{.Author}}</b><br/>{{end}}
     {{if .PubDate}}<em>Published {{.PubDate}}</em><br/>{{end}}
 	{{if .ForWeb}}<span id="top-links">
@@ -416,19 +417,19 @@ func (p *Processor) sendMail(docPath string) error {
 	return nil
 }
 
-func (p *Processor) ProcessUrl(contentUrl string, fromFriend bool) (pi PageInfo, err error) {
-	if contentUrl, err = p.rewriteUrl(contentUrl); err != nil {
+func (p *Processor) ProcessURL(contentURL string, fromFriend bool) (pi PageInfo, err error) {
+	if contentURL, err = p.rewriteURL(contentURL); err != nil {
 		return pi, fmt.Errorf("failed rewriting URL: %v", err)
 	}
 
-	pi.Id = getSha1String(contentUrl)
-	pi.OriginalUrl = contentUrl
+	pi.Id = getSha1String(contentURL)
+	pi.OriginalURL = contentURL
 	pi.TimeAdded = time.Now().Unix()
-	pi.Token = getSha1String(fmt.Sprintf("%s|%s|%s", p.cfg.Username, p.cfg.Password, contentUrl))
+	pi.Token = getSha1String(fmt.Sprintf("%s|%s|%s", p.cfg.Username, p.cfg.Password, contentURL))
 	pi.FromFriend = fromFriend
 
 	outDir := filepath.Join(p.cfg.PageDir, pi.Id)
-	p.cfg.Logger.Printf("Processing %v in %v\n", contentUrl, outDir)
+	p.cfg.Logger.Printf("Processing %v in %v\n", contentURL, outDir)
 
 	if _, err = os.Stat(outDir); err == nil {
 		p.cfg.Logger.Printf("Deleting existing %v directory\n", outDir)

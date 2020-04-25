@@ -59,7 +59,7 @@ func (d *Database) AddSession(id, ip string) error {
 
 func (d *Database) AddPage(pi PageInfo) error {
 	q := "INSERT OR REPLACE INTO Pages (Id, OriginalUrl, Title, TimeAdded, Token) VALUES(?, ?, ?, ?, ?)"
-	if _, err := d.db.Exec(q, pi.Id, pi.OriginalUrl, pi.Title, pi.TimeAdded, pi.Token); err != nil {
+	if _, err := d.db.Exec(q, pi.Id, pi.OriginalURL, pi.Title, pi.TimeAdded, pi.Token); err != nil {
 		return err
 	}
 	return nil
@@ -74,7 +74,7 @@ func (d *Database) GetPage(id string) (pi PageInfo, err error) {
 	if !rows.Next() {
 		return pi, errors.New("page not found in database")
 	}
-	if err = rows.Scan(&pi.Id, &pi.OriginalUrl, &pi.Title, &pi.TimeAdded, &pi.Token); err != nil {
+	if err = rows.Scan(&pi.Id, &pi.OriginalURL, &pi.Title, &pi.TimeAdded, &pi.Token); err != nil {
 		return pi, err
 	}
 	return pi, nil
@@ -89,7 +89,7 @@ func (d *Database) GetAllPages(archived bool, maxPages int) (pages []PageInfo, e
 	defer rows.Close()
 	for rows.Next() {
 		pi := PageInfo{}
-		if err = rows.Scan(&pi.Id, &pi.OriginalUrl, &pi.Title, &pi.TimeAdded, &pi.Token); err != nil {
+		if err = rows.Scan(&pi.Id, &pi.OriginalURL, &pi.Title, &pi.TimeAdded, &pi.Token); err != nil {
 			return pages, err
 		}
 		pages = append(pages, pi)

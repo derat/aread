@@ -10,43 +10,44 @@ import (
 )
 
 const (
-	addUrlParam    = "u"
+	addURLParam    = "u"
 	addKindleParam = "k"
 )
 
 type Handler struct {
-	cfg           Config
+	cfg           config
 	processor     *Processor
 	db            *Database
 	staticHandler http.Handler
 	pageHandler   http.Handler
 }
 
-func newHandler(cfg Config, p *Processor, d *Database) Handler {
+func newHandler(cfg config, p *Processor, d *Database) Handler {
 	return Handler{
 		cfg:           cfg,
 		processor:     p,
 		db:            d,
-		staticHandler: http.StripPrefix(cfg.GetPath(staticUrlPath), http.FileServer(http.Dir(cfg.StaticDir))),
-		pageHandler:   http.StripPrefix(cfg.GetPath(pagesUrlPath), http.FileServer(http.Dir(cfg.PageDir))),
+		staticHandler: http.StripPrefix(cfg.GetPath(staticURLPath), http.FileServer(http.Dir(cfg.StaticDir))),
+		pageHandler:   http.StripPrefix(cfg.GetPath(pagesURLPath), http.FileServer(http.Dir(cfg.PageDir))),
 	}
 }
 
 func (h Handler) getStylesheets() []string {
-	return []string{h.cfg.GetPath(staticUrlPath, commonCssFile), h.cfg.GetPath(staticUrlPath, appCssFile)}
+	return []string{h.cfg.GetPath(staticURLPath, commonCssFile), h.cfg.GetPath(staticURLPath, appCssFile)}
 }
 
 func (h Handler) getAddToken() string {
 	return getSha1String(h.cfg.Username + "|" + h.cfg.Password)
 }
 
-func (h Handler) makeBookmarklet(baseUrl string, token string, kindle bool) string {
-	getCurUrl := "encodeURIComponent(document.URL)"
-	addUrl := joinUrlAndPath(baseUrl, addUrlPath) + "?" + addUrlParam + "=\"+" + getCurUrl + "+\"&" + tokenParam + "=" + token
+func (h Handler) makeBookmarklet(baseURL string, token string, kindle bool) string {
+	getCurURL := "encodeURIComponent(document.URL)"
+	addURL := joinURLAndPath(baseURL, addURLPath) +
+		fmt.Sprintf("?%s=\"+%s+\"&%s=%s", addURLParam, getCurURL, tokenParam, token)
 	if kindle {
-		addUrl += "&" + addKindleParam + "=1"
+		addURL += fmt.Sprintf("&%s=1", addKindleParam)
 	}
-	return "javascript:{window.location.href=\"" + addUrl + "\";};void(0);"
+	return "javascript:{window.location.href=\"" + addURL + "\";};void(0);"
 }
 
 func (h Handler) serveTemplate(w http.ResponseWriter, t string, d interface{}, fm template.FuncMap) {
@@ -73,7 +74,7 @@ func (h Handler) isFriend(r *http.Request) bool {
 }
 
 func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
-	u := r.FormValue(addUrlParam)
+	u := r.FormValue(addURLParam)
 	if len(u) > 0 {
 		isFriend := h.isFriend(r)
 		if !isFriend && r.FormValue(tokenParam) != h.getAddToken() {
@@ -82,7 +83,7 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		pi, err := h.processor.ProcessUrl(u, isFriend)
+		pi, err := h.processor.ProcessURL(u, isFriend)
 		if err != nil {
 			h.cfg.Logger.Println(err)
 			http.Error(w, fmt.Sprintf("Failed to process %v: %v", u, err), http.StatusInternalServerError)
@@ -105,11 +106,11 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 			writeHeader(w, h.cfg, h.getStylesheets(), "Added page", "", "")
 			h.serveTemplate(w, `
   <body>
-	<p>Successfully added {{.Url}}!
+	<p>Successfully added {{.URL}}!
   </body>
-</html>`, struct{ Url string }{Url: u}, template.FuncMap{})
+</html>`, struct{ URL string }{URL: u}, template.FuncMap{})
 		} else {
-			http.Redirect(w, r, h.cfg.GetPath(pagesUrlPath, pi.Id), http.StatusFound)
+			http.Redirect(w, r, h.cfg.GetPath(pagesURLPath, pi.Id), http.StatusFound)
 		}
 		return
 	}
@@ -182,10 +183,10 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		KindleBookmarkletHref template.HTMLAttr
 		FriendBookmarkletHref template.HTMLAttr
 	}{
-		PagesPath:             h.cfg.GetPath(pagesUrlPath),
-		AddPath:               h.cfg.GetPath(addUrlPath),
-		ReadBookmarkletHref:   template.HTMLAttr("href=" + h.makeBookmarklet(h.cfg.BaseUrl, h.getAddToken(), false)),
-		KindleBookmarkletHref: template.HTMLAttr("href=" + h.makeBookmarklet(h.cfg.BaseUrl, h.getAddToken(), true)),
+		PagesPath:             h.cfg.GetPath(pagesURLPath),
+		AddPath:               h.cfg.GetPath(addURLPath),
+		ReadBookmarkletHref:   template.HTMLAttr("href=" + h.makeBookmarklet(h.cfg.BaseURL, h.getAddToken(), false)),
+		KindleBookmarkletHref: template.HTMLAttr("href=" + h.makeBookmarklet(h.cfg.BaseURL, h.getAddToken(), true)),
 	}
 
 	archived := r.FormValue("a") == "1"
@@ -201,8 +202,8 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		d.ToggleListPath = archivedListPath
 	}
 
-	if len(h.cfg.FriendBaseUrl) > 0 && len(h.cfg.FriendRemoteToken) > 0 {
-		d.FriendBookmarkletHref = template.HTMLAttr("href=" + h.makeBookmarklet(h.cfg.FriendBaseUrl, h.cfg.FriendRemoteToken, true))
+	if len(h.cfg.FriendBaseURL) > 0 && len(h.cfg.FriendRemoteToken) > 0 {
+		d.FriendBookmarkletHref = template.HTMLAttr("href=" + h.makeBookmarklet(h.cfg.FriendBaseURL, h.cfg.FriendRemoteToken, true))
 	}
 
 	var err error
@@ -215,12 +216,12 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	fm := template.FuncMap{
 		"host": getHost,
 		"time": func(t int64) string { return time.Unix(t, 0).Format("Monday, Jan 2 at 15:04") },
-		"toggleUrl": func(id, token string) string {
+		"toggleURL": func(id, token string) string {
 			listPath := unarchivedListPath
 			if archived {
 				listPath = archivedListPath
 			}
-			return fmt.Sprintf("%s?%s=%s&%s=%s&%s=%s", h.cfg.GetPath(archiveUrlPath), idParam, id, tokenParam, token, redirectParam, listPath)
+			return fmt.Sprintf("%s?%s=%s&%s=%s&%s=%s", h.cfg.GetPath(archiveURLPath), idParam, id, tokenParam, token, redirectParam, listPath)
 		},
 	}
 
@@ -231,9 +232,9 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
     {{ range .Pages }}
     <div class="list-entry">
       <div class="title"><a href="{{$.PagesPath}}/{{.Id}}/">{{.Title}}</a></div>
-      <div class="orig"><a href="{{.OriginalUrl}}">{{host .OriginalUrl}}</a></div>
+      <div class="orig"><a href="{{.OriginalURL}}">{{host .OriginalURL}}</a></div>
       <div class="details">
-        <a href="{{toggleUrl .Id .Token}}">{{$.TogglePageString}}</a> - <span class="time">Added {{time .TimeAdded}}</span>
+        <a href="{{toggleURL .Id .Token}}">{{$.TogglePageString}}</a> - <span class="time">Added {{time .TimeAdded}}</span>
       </div>
     </div>
     {{ end }}
@@ -292,35 +293,35 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reqPath = reqPath[1:]
 	}
 
-	if strings.HasPrefix(reqPath, staticUrlPath+"/") {
+	if strings.HasPrefix(reqPath, staticURLPath+"/") {
 		h.staticHandler.ServeHTTP(w, r)
 		return
 	}
 	if reqPath == "favicon.ico" {
-		http.Redirect(w, r, h.cfg.GetPath(staticUrlPath, "favicon.ico"), http.StatusFound)
+		http.Redirect(w, r, h.cfg.GetPath(staticURLPath, "favicon.ico"), http.StatusFound)
 		return
 	}
-	if reqPath == authUrlPath {
+	if reqPath == authURLPath {
 		h.handleAuth(w, r)
 		return
 	}
 
 	// Everything else requires authentication.
-	if !h.isAuthenticated(r) && !(reqPath == addUrlPath && h.isFriend(r)) {
+	if !h.isAuthenticated(r) && !(reqPath == addURLPath && h.isFriend(r)) {
 		h.cfg.Logger.Printf("Unauthenticated request from %v\n", r.RemoteAddr)
-		http.Redirect(w, r, h.cfg.GetPath(authUrlPath+"?"+redirectParam+"="+r.URL.Path), http.StatusFound)
+		http.Redirect(w, r, h.cfg.GetPath(authURLPath+"?"+redirectParam+"="+r.URL.Path), http.StatusFound)
 		return
 	}
 
 	if len(reqPath) == 0 {
 		h.handleList(w, r)
-	} else if reqPath == addUrlPath {
+	} else if reqPath == addURLPath {
 		h.handleAdd(w, r)
-	} else if reqPath == archiveUrlPath {
+	} else if reqPath == archiveURLPath {
 		h.handleArchive(w, r)
-	} else if reqPath == kindleUrlPath {
+	} else if reqPath == kindleURLPath {
 		h.handleKindle(w, r)
-	} else if strings.HasPrefix(reqPath, pagesUrlPath+"/") {
+	} else if strings.HasPrefix(reqPath, pagesURLPath+"/") {
 		h.pageHandler.ServeHTTP(w, r)
 	} else {
 		http.Error(w, "Bogus request", http.StatusBadRequest)

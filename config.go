@@ -8,12 +8,12 @@ import (
 	"path"
 )
 
-type Config struct {
+type config struct {
 	ParserPath        string
-	BaseUrl           string
+	BaseURL           string
 	StaticDir         string
 	PageDir           string
-	UrlPatternsFile   string
+	URLPatternsFile   string
 	BadContentFile    string
 	HiddenTagsFile    string
 	Database          string
@@ -22,7 +22,7 @@ type Config struct {
 	Sender            string
 	Username          string
 	Password          string
-	FriendBaseUrl     string
+	FriendBaseURL     string
 	FriendRemoteToken string
 	FriendLocalToken  string
 	FriendTitlePrefix string
@@ -38,37 +38,40 @@ type Config struct {
 	Logger            *log.Logger
 }
 
-func readConfig(configPath string, logger *log.Logger) (cfg Config, err error) {
-	cfg.Logger = logger
-	cfg.PageDir = "/tmp"
-	cfg.DownloadImages = true
-	cfg.MaxImageWidth = 1024
-	cfg.MaxImageHeight = 768
-	cfg.MaxImageBytes = 1 * 1024 * 1024
-	cfg.JpegQuality = 85
-	cfg.MaxImageProcs = 3
-	cfg.MaxListSize = 50
-	f, err := os.Open(configPath)
+func readConfig(p string, lg *log.Logger) (config, error) {
+	cfg := config{
+		Logger:         lg,
+		PageDir:        "/tmp",
+		DownloadImages: true,
+		MaxImageWidth:  1024,
+		MaxImageHeight: 768,
+		MaxImageBytes:  1 * 1024 * 1024,
+		JpegQuality:    85,
+		MaxImageProcs:  3,
+		MaxListSize:    50,
+	}
+
+	f, err := os.Open(p)
 	if err != nil {
 		return cfg, err
 	}
 	defer f.Close()
+
 	d := json.NewDecoder(f)
 	if err = d.Decode(&cfg); err != nil {
 		return cfg, err
 	}
 
-	if cfg.BaseUrl[len(cfg.BaseUrl)-1] == '/' {
-		cfg.BaseUrl = cfg.BaseUrl[:len(cfg.BaseUrl)-1]
+	if cfg.BaseURL[len(cfg.BaseURL)-1] == '/' {
+		cfg.BaseURL = cfg.BaseURL[:len(cfg.BaseURL)-1]
 	}
-
 	return cfg, nil
 }
 
-func (c *Config) GetPath(p ...string) string {
-	u, err := url.Parse(c.BaseUrl)
+func (cfg *config) GetPath(p ...string) string {
+	u, err := url.Parse(cfg.BaseURL)
 	if err != nil {
-		c.Logger.Fatalf("Unable to parse base URL %v: %v\n", c.BaseUrl, err)
+		cfg.Logger.Fatalf("Unable to parse base URL %v: %v\n", cfg.BaseURL, err)
 	}
 
 	p = append(p, "")

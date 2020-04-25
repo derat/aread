@@ -45,7 +45,7 @@ func getAttrValue(token *html.Token, name string) string {
 }
 
 type Rewriter struct {
-	cfg Config
+	cfg config
 }
 
 // readHiddenTagsFile returns maps containing the tags that should be hidden for url.
@@ -62,7 +62,7 @@ func (r *Rewriter) readHiddenTagsFile(url string) (*hiddenIdsMap, *hiddenTagsMap
 	// "*.class" matches all elements with class "class".
 	// "#id" matches the element with ID "id".
 	data := make(map[string][]string)
-	if err := readJsonFile(r.cfg.HiddenTagsFile, &data); err != nil {
+	if err := readJSONFile(r.cfg.HiddenTagsFile, &data); err != nil {
 		return nil, nil, err
 	}
 
@@ -121,37 +121,37 @@ func (r *Rewriter) shouldHideToken(t *html.Token, ids *hiddenIdsMap, tags *hidde
 	return false
 }
 
-// fixImageUrl fixes up <img> elements that Readability decided to break because
+// fixImageURL fixes up <img> elements that Readability decided to break because
 // they had srcset attributes. Specifically, an <img> element with both src and
 // srcset attributes seems to end up with just a src attribute containing a
 // URL-escaped copy of the srcset value. That makes absolutely no sense.
-func (r *Rewriter) fixImageUrl(url string) string {
+func (r *Rewriter) fixImageURL(url string) string {
 	if m, _ := regexp.MatchString("%20\\d+[wx](,|$)", url); !m {
 		return url
 	}
 	// Just chop off the first space and everything after it.
 	index := strings.Index(url, "%20")
-	newUrl := url[0:index]
-	r.cfg.Logger.Printf("Rewrote broken-looking image URL %q to %q\n", url, newUrl)
-	return newUrl
+	newURL := url[0:index]
+	r.cfg.Logger.Printf("Rewrote broken-looking image URL %q to %q\n", url, newURL)
+	return newURL
 }
 
-// RewriteContent rewrites HTML that is passed to it. imageUrls maps from local
+// RewriteContent rewrites HTML that is passed to it. imageURLs maps from local
 // filename to the original remote image URL.
-func (r *Rewriter) RewriteContent(input, url string) (content string, imageUrls map[string]string, err error) {
+func (r *Rewriter) RewriteContent(input, url string) (content string, imageURLs map[string]string, err error) {
 	hiddenIds, hiddenTags, err := r.readHiddenTagsFile(url)
 	if err != nil {
 		return "", nil, err
 	}
 
-	imageUrls = make(map[string]string)
+	imageURLs = make(map[string]string)
 	hideDepth := 0
 
 	z := html.NewTokenizer(strings.NewReader(input))
 	for {
 		if z.Next() == html.ErrorToken {
 			if z.Err() == io.EOF {
-				return content, imageUrls, nil
+				return content, imageURLs, nil
 			}
 			return "", nil, z.Err()
 		}
@@ -189,9 +189,9 @@ func (r *Rewriter) RewriteContent(input, url string) (content string, imageUrls 
 				if attr.Key == "src" && len(attr.Val) > 0 {
 					hasSrc = true
 					if r.cfg.DownloadImages {
-						imageUrl := r.fixImageUrl(attr.Val)
-						filename := getLocalImageFilename(imageUrl)
-						imageUrls[filename] = imageUrl
+						imageURL := r.fixImageURL(attr.Val)
+						filename := getLocalImageFilename(imageURL)
+						imageURLs[filename] = imageURL
 						attr.Val = filename
 					}
 				} else if attr.Key == "title" && len(attr.Val) > 0 {
@@ -239,5 +239,5 @@ func (r *Rewriter) RewriteContent(input, url string) (content string, imageUrls 
 
 		content += t.String() + extraText
 	}
-	return content, imageUrls, nil
+	return content, imageURLs, nil
 }
