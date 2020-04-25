@@ -14,7 +14,7 @@ const (
 	addKindleParam = "k"
 )
 
-type Handler struct {
+type handler struct {
 	cfg           config
 	processor     *Processor
 	db            *Database
@@ -22,8 +22,8 @@ type Handler struct {
 	pageHandler   http.Handler
 }
 
-func newHandler(cfg config, p *Processor, d *Database) Handler {
-	return Handler{
+func newHandler(cfg config, p *Processor, d *Database) handler {
+	return handler{
 		cfg:           cfg,
 		processor:     p,
 		db:            d,
@@ -32,15 +32,15 @@ func newHandler(cfg config, p *Processor, d *Database) Handler {
 	}
 }
 
-func (h Handler) getStylesheets() []string {
+func (h handler) getStylesheets() []string {
 	return []string{h.cfg.GetPath(staticURLPath, commonCssFile), h.cfg.GetPath(staticURLPath, appCssFile)}
 }
 
-func (h Handler) getAddToken() string {
+func (h handler) getAddToken() string {
 	return getSha1String(h.cfg.Username + "|" + h.cfg.Password)
 }
 
-func (h Handler) makeBookmarklet(baseURL string, token string, kindle bool) string {
+func (h handler) makeBookmarklet(baseURL string, token string, kindle bool) string {
 	getCurURL := "encodeURIComponent(document.URL)"
 	addURL := joinURLAndPath(baseURL, addURLPath) +
 		fmt.Sprintf("?%s=\"+%s+\"&%s=%s", addURLParam, getCurURL, tokenParam, token)
@@ -50,13 +50,13 @@ func (h Handler) makeBookmarklet(baseURL string, token string, kindle bool) stri
 	return "javascript:{window.location.href=\"" + addURL + "\";};void(0);"
 }
 
-func (h Handler) serveTemplate(w http.ResponseWriter, t string, d interface{}, fm template.FuncMap) {
+func (h handler) serveTemplate(w http.ResponseWriter, t string, d interface{}, fm template.FuncMap) {
 	if err := writeTemplate(w, h.cfg, t, d, fm); err != nil {
 		http.Error(w, fmt.Sprintf("Template error: %v", err), http.StatusInternalServerError)
 	}
 }
 
-func (h Handler) isAuthenticated(r *http.Request) bool {
+func (h handler) isAuthenticated(r *http.Request) bool {
 	c, err := r.Cookie(sessionCookieName)
 	if err != nil {
 		return false
@@ -69,11 +69,11 @@ func (h Handler) isAuthenticated(r *http.Request) bool {
 	return isAuth
 }
 
-func (h Handler) isFriend(r *http.Request) bool {
+func (h handler) isFriend(r *http.Request) bool {
 	return len(h.cfg.FriendLocalToken) > 0 && r.FormValue(tokenParam) == h.cfg.FriendLocalToken
 }
 
-func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
+func (h handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 	u := r.FormValue(addURLParam)
 	if len(u) > 0 {
 		isFriend := h.isFriend(r)
@@ -132,7 +132,7 @@ func (h Handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 </html>`, struct{ Token string }{Token: h.getAddToken()}, template.FuncMap{})
 }
 
-func (h Handler) handleArchive(w http.ResponseWriter, r *http.Request) {
+func (h handler) handleArchive(w http.ResponseWriter, r *http.Request) {
 	pi, err := h.db.GetPage(r.FormValue(idParam))
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Unable to find page: %v", err), http.StatusBadRequest)
@@ -151,7 +151,7 @@ func (h Handler) handleArchive(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, r.FormValue(redirectParam), http.StatusFound)
 }
 
-func (h Handler) handleKindle(w http.ResponseWriter, r *http.Request) {
+func (h handler) handleKindle(w http.ResponseWriter, r *http.Request) {
 	pi, err := h.db.GetPage(r.FormValue(idParam))
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Unable to find page: %v", err), http.StatusBadRequest)
@@ -170,7 +170,7 @@ func (h Handler) handleKindle(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, r.FormValue(redirectParam), http.StatusFound)
 }
 
-func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
+func (h handler) handleList(w http.ResponseWriter, r *http.Request) {
 	d := struct {
 		Pages                 []PageInfo
 		PagesPath             string
@@ -248,7 +248,7 @@ func (h Handler) handleList(w http.ResponseWriter, r *http.Request) {
 </html>`, d, fm)
 }
 
-func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
+func (h handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 	if len(r.FormValue("p")) > 0 {
 		if r.FormValue("u") == h.cfg.Username && r.FormValue("p") == h.cfg.Password {
 			id := getSha1String(h.cfg.Username + "|" + h.cfg.Password + "|" + strconv.FormatInt(time.Now().UnixNano(), 10))
@@ -282,7 +282,7 @@ func (h Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 </html>`, struct{ Redirect string }{Redirect: r.FormValue("r")}, template.FuncMap{})
 }
 
-func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !strings.HasPrefix(r.URL.Path, h.cfg.GetPath()) {
 		h.cfg.Logger.Printf("Got request with unexpected path \"%v\"", r.URL.Path)
 		http.Error(w, "Unexpected path", http.StatusInternalServerError)
