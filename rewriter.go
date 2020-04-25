@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"golang.org/x/net/html"
 	"io"
 	"regexp"
 	"strings"
+
+	"golang.org/x/net/html"
 )
 
 // id -> true
@@ -86,7 +87,7 @@ func (r *Rewriter) readHiddenTagsFile(url string) (*hiddenIdsMap, *hiddenTagsMap
 				}
 				tags[element][class] = true
 			} else {
-				return nil, nil, fmt.Errorf("Expected #id, element, or element.class in %q", entry)
+				return nil, nil, fmt.Errorf("expected #id, element, or element.class in %q", entry)
 			}
 		}
 	}

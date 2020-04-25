@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	// Handle Comodo certs: http://bridge.grumpy-troll.org/2014/05/golang-tls-comodo/
 	_ "crypto/sha512"
 	"encoding/base64"
@@ -37,11 +38,11 @@ const (
 func getStringValue(object *map[string]interface{}, name string) (string, error) {
 	data, ok := (*object)[name]
 	if !ok {
-		return "", fmt.Errorf("No property \"%v\" in object", name)
+		return "", fmt.Errorf("no property %q in object", name)
 	}
 	s, ok := data.(string)
 	if !ok {
-		return "", fmt.Errorf("Property \"%v\" is not a string", name)
+		return "", fmt.Errorf("property %q is not a string", name)
 	}
 	return s, nil
 }
@@ -81,11 +82,11 @@ func (p *Processor) rewriteUrl(origUrl string) (newUrl string, err error) {
 	newUrl = origUrl
 	for i, entry := range pats {
 		if len(entry) != 2 {
-			return "", fmt.Errorf("Entry %v had %v element(s); should be [regexp, repl]", i, len(entry))
+			return "", fmt.Errorf("entry %v had %v element(s); should be [regexp, repl]", i, len(entry))
 		}
 		re, err := regexp.Compile(entry[0])
 		if err != nil {
-			return "", fmt.Errorf("Failed to compile regexp %q: %v", entry[0], err)
+			return "", fmt.Errorf("failed to compile regexp %q: %v", entry[0], err)
 		}
 		newUrl = re.ReplaceAllString(newUrl, entry[1])
 	}
@@ -99,7 +100,7 @@ func (p *Processor) openUrl(url string, head *http.Header, maxRetries int) (io.R
 	for i := 0; ; i++ {
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to create request for %v: %v", url, err)
+			return nil, fmt.Errorf("failed to create request for %v: %v", url, err)
 		}
 		if head != nil {
 			req.Header = *head
@@ -111,7 +112,7 @@ func (p *Processor) openUrl(url string, head *http.Header, maxRetries int) (io.R
 			transientError = true
 		} else if resp.StatusCode != 200 {
 			resp.Body.Close()
-			err = fmt.Errorf("Received status code %d", resp.StatusCode)
+			err = fmt.Errorf("received status code %d", resp.StatusCode)
 			transientError = resp.StatusCode >= 500 && resp.StatusCode < 600
 		} else {
 			return resp.Body, nil
@@ -121,7 +122,7 @@ func (p *Processor) openUrl(url string, head *http.Header, maxRetries int) (io.R
 			p.cfg.Logger.Printf("Got transient error for %v: %v\n", url, err)
 			time.Sleep(time.Duration(httpRetryDelayMs) * time.Millisecond)
 		} else {
-			return nil, fmt.Errorf("Unable to get %v: %v", url, err)
+			return nil, fmt.Errorf("unable to get %v: %v", url, err)
 		}
 	}
 }
@@ -179,18 +180,18 @@ func (p *Processor) checkContent(pi PageInfo, content string) error {
 	}
 	for i, entry := range pats {
 		if len(entry) != 2 {
-			return fmt.Errorf("Entry %v had %v element(s); should be [url_regexp, content_regexp]", i, len(entry))
+			return fmt.Errorf("entry %v had %v element(s); should be [url_regexp, content_regexp]", i, len(entry))
 		}
 		urlRegexp, err := regexp.Compile(entry[0])
 		if err != nil {
-			return fmt.Errorf("Failed to compile URL regexp %q: %v", entry[0], err)
+			return fmt.Errorf("failed to compile URL regexp %q: %v", entry[0], err)
 		}
 		contentRegexp, err := regexp.Compile(entry[1])
 		if err != nil {
-			return fmt.Errorf("Failed to compile content regexp %q: %v", entry[1], err)
+			return fmt.Errorf("failed to compile content regexp %q: %v", entry[1], err)
 		}
 		if urlRegexp.MatchString(pi.OriginalUrl) && contentRegexp.MatchString(content) {
-			return fmt.Errorf("Matched %q", entry[1])
+			return fmt.Errorf("matched %q", entry[1])
 		}
 	}
 	return nil
@@ -203,7 +204,7 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 	}
 	o := make(map[string]interface{}) // TODO: This is dumb.
 	if err = json.Unmarshal(b, &o); err != nil {
-		return "", fmt.Errorf("Unable to unmarshal JSON: %v", err)
+		return "", fmt.Errorf("unable to unmarshal JSON: %v", err)
 	}
 
 	queryParams := fmt.Sprintf("?%s=%s&%s=%s&%s=%s", idParam, pi.Id, tokenParam, pi.Token, redirectParam, url.QueryEscape(p.cfg.GetPath()))
@@ -228,14 +229,14 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 
 	content, err := getStringValue(&o, "content")
 	if err != nil {
-		return title, fmt.Errorf("Unable to get content: %v", err)
+		return title, fmt.Errorf("unable to get content: %v", err)
 	}
 	if p.cfg.Verbose {
 		p.cfg.Logger.Printf("Content:\n%v", content)
 	}
 
 	if err = p.checkContent(pi, content); err != nil {
-		return title, fmt.Errorf("Bad content: %v", err)
+		return title, fmt.Errorf("bad content: %v", err)
 	}
 
 	title, _ = getStringValue(&o, "title")
@@ -267,7 +268,7 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 	rewriter := Rewriter{p.cfg}
 	content, imageUrls, err = rewriter.RewriteContent(content, pi.OriginalUrl)
 	if err != nil {
-		return title, fmt.Errorf("Unable to process content: %v", err)
+		return title, fmt.Errorf("unable to process content: %v", err)
 	}
 	d.Content = template.HTML(content)
 
@@ -328,7 +329,7 @@ func (p *Processor) downloadContent(pi PageInfo, dir string) (title string, err 
 </html>`
 		d.ForWeb = filename != kindleFile
 		if err := writeTemplate(contentFile, p.cfg, t, d, template.FuncMap{}); err != nil {
-			return title, fmt.Errorf("Failed to execute page template: %v", err)
+			return title, fmt.Errorf("failed to execute page template: %v", err)
 		}
 	}
 
@@ -342,7 +343,7 @@ func (p *Processor) buildDoc(dir string) error {
 	if err != nil {
 		// kindlegen returns 1 for warnings and 2 for fatal errors.
 		if status, ok := err.(*exec.ExitError); !ok || status.Sys().(syscall.WaitStatus).ExitStatus() != 1 {
-			return fmt.Errorf("Failed to build doc: %v", err)
+			return fmt.Errorf("failed to build doc: %v", err)
 		}
 	}
 	return nil
@@ -384,15 +385,15 @@ func (p *Processor) sendMail(docPath string) error {
 			"Content-Type: multipart/mixed; boundary=%s\r\n"+
 			"\r\n",
 		p.cfg.Sender, p.cfg.Recipient, mw.Boundary()))); err != nil {
-		return fmt.Errorf("Failed to write header: %v", err)
+		return fmt.Errorf("failed to write header: %v", err)
 	}
 
 	thead := make(textproto.MIMEHeader)
 	thead.Add("Content-Type", "text/plain; charset=UTF-8")
 	if pw, err := mw.CreatePart(thead); err != nil {
-		return fmt.Errorf("Failed to create text part: %v", err)
+		return fmt.Errorf("failed to create text part: %v", err)
 	} else if _, err = pw.Write([]byte("Nothing to see here.")); err != nil {
-		return fmt.Errorf("Failed to write text part: %v", err)
+		return fmt.Errorf("failed to write text part: %v", err)
 	}
 
 	basename := filepath.Base(docPath)
@@ -402,9 +403,9 @@ func (p *Processor) sendMail(docPath string) error {
 	ahead.Add("Content-Transfer-Encoding", "base64")
 	ahead.Add("X-Attachment-Id", basename)
 	if pw, err := mw.CreatePart(ahead); err != nil {
-		return fmt.Errorf("Failed to create attachment part: %v", err)
+		return fmt.Errorf("failed to create attachment part: %v", err)
 	} else if _, err = pw.Write(buf.Bytes()); err != nil {
-		return fmt.Errorf("Failed to write attachment part: %v", err)
+		return fmt.Errorf("failed to write attachment part: %v", err)
 	}
 
 	if err = mw.Close(); err != nil {
@@ -417,7 +418,7 @@ func (p *Processor) sendMail(docPath string) error {
 
 func (p *Processor) ProcessUrl(contentUrl string, fromFriend bool) (pi PageInfo, err error) {
 	if contentUrl, err = p.rewriteUrl(contentUrl); err != nil {
-		return pi, fmt.Errorf("Failed rewriting URL: %v", err)
+		return pi, fmt.Errorf("failed rewriting URL: %v", err)
 	}
 
 	pi.Id = getSha1String(contentUrl)
@@ -449,12 +450,12 @@ func (p *Processor) SendToKindle(id string) error {
 	if matched, err := regexp.Match("^[a-f0-9]+$", []byte(id)); err != nil {
 		return err
 	} else if !matched {
-		return fmt.Errorf("Invalid ID")
+		return errors.New("invalid ID")
 	}
 
 	outDir := filepath.Join(p.cfg.PageDir, id)
 	if _, err := os.Stat(outDir); err != nil {
-		return fmt.Errorf("Nonexistent directory")
+		return errors.New("nonexistent directory")
 	}
 
 	if err := p.buildDoc(outDir); err != nil {
@@ -467,7 +468,7 @@ func (p *Processor) SendToKindle(id string) error {
 	}
 	docPath := filepath.Join(outDir, docFile)
 	if err := p.sendMail(docPath); err != nil {
-		return fmt.Errorf("Unable to send mail: %v", err)
+		return fmt.Errorf("unable to send mail: %v", err)
 	}
 	if err := os.Remove(docPath); err != nil {
 		return err

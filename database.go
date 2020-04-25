@@ -2,9 +2,11 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
-	_ "github.com/mattn/go-sqlite3"
 	"time"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type Database struct {
@@ -31,7 +33,7 @@ func newDatabase(path string) (*Database, error) {
 			IpAddress STRING)`,
 	} {
 		if _, err = db.Exec(q); err != nil {
-			return nil, fmt.Errorf("Unable to initialize database: %v", err)
+			return nil, fmt.Errorf("unable to initialize database: %v", err)
 		}
 	}
 
@@ -70,7 +72,7 @@ func (d *Database) GetPage(id string) (pi PageInfo, err error) {
 	}
 	defer rows.Close()
 	if !rows.Next() {
-		return pi, fmt.Errorf("Page not found in database")
+		return pi, errors.New("page not found in database")
 	}
 	if err = rows.Scan(&pi.Id, &pi.OriginalUrl, &pi.Title, &pi.TimeAdded, &pi.Token); err != nil {
 		return pi, err
