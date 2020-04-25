@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/derat/aread/common"
+	"github.com/derat/aread/database"
 )
 
 const sessionCookieName = "session"
@@ -15,12 +16,12 @@ const sessionCookieName = "session"
 type handler struct {
 	cfg           *common.Config
 	proc          *processor
-	db            *database
+	db            *database.DB
 	staticHandler http.Handler
 	pageHandler   http.Handler
 }
 
-func newHandler(cfg *common.Config, proc *processor, db *database) handler {
+func newHandler(cfg *common.Config, proc *processor, db *database.DB) handler {
 	return handler{
 		cfg:  cfg,
 		proc: proc,
@@ -62,7 +63,7 @@ func (h handler) isAuthenticated(r *http.Request) bool {
 	if err != nil {
 		return false
 	}
-	isAuth, err := h.db.validSession(c.Value)
+	isAuth, err := h.db.ValidSession(c.Value)
 	if err != nil {
 		h.cfg.Logger.Println(err)
 		return false
@@ -90,7 +91,7 @@ func (h handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Failed to process %v: %v", u, err), http.StatusInternalServerError)
 			return
 		}
-		if err = h.db.addPage(pi); err != nil {
+		if err = h.db.AddPage(pi); err != nil {
 			h.cfg.Logger.Println(err)
 			http.Error(w, fmt.Sprintf("Failed to add to database: %v", err), http.StatusInternalServerError)
 			return
@@ -134,7 +135,7 @@ func (h handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) handleArchive(w http.ResponseWriter, r *http.Request) {
-	pi, err := h.db.getPage(r.FormValue(common.IDParam))
+	pi, err := h.db.GetPage(r.FormValue(common.IDParam))
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Unable to find page: %v", err), http.StatusBadRequest)
 		return
@@ -144,7 +145,7 @@ func (h handler) handleArchive(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid token", http.StatusBadRequest)
 		return
 	}
-	if err := h.db.togglePageArchived(pi.Id); err != nil {
+	if err := h.db.TogglePageArchived(pi.Id); err != nil {
 		h.cfg.Logger.Println(err)
 		http.Error(w, fmt.Sprintf("Failed to toggle archived state: %v", err), http.StatusInternalServerError)
 		return
@@ -153,7 +154,7 @@ func (h handler) handleArchive(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) handleKindle(w http.ResponseWriter, r *http.Request) {
-	pi, err := h.db.getPage(r.FormValue(common.IDParam))
+	pi, err := h.db.GetPage(r.FormValue(common.IDParam))
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Unable to find page: %v", err), http.StatusBadRequest)
 		return
@@ -208,7 +209,7 @@ func (h handler) handleList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var err error
-	if d.Pages, err = h.db.getAllPages(archived, h.cfg.MaxListSize); err != nil {
+	if d.Pages, err = h.db.GetAllPages(archived, h.cfg.MaxListSize); err != nil {
 		h.cfg.Logger.Printf("Unable to get pages: %v\n", err)
 		http.Error(w, fmt.Sprintf("Unable to get page list: %v", err), http.StatusInternalServerError)
 		return
@@ -254,7 +255,7 @@ func (h handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 	if len(r.FormValue("p")) > 0 {
 		if r.FormValue("u") == h.cfg.Username && r.FormValue("p") == h.cfg.Password {
 			id := common.SHA1String(fmt.Sprintf("%s|%s|%d", h.cfg.Username, h.cfg.Password, time.Now().UnixNano()))
-			if err := h.db.addSession(id, r.RemoteAddr); err != nil {
+			if err := h.db.AddSession(id, r.RemoteAddr); err != nil {
 				h.cfg.Logger.Printf("Unable to insert session: %v\n", err)
 				http.Error(w, fmt.Sprintf("Unable to insert session: %v", err), http.StatusInternalServerError)
 				return
