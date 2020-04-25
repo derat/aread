@@ -17,12 +17,12 @@ const (
 type handler struct {
 	cfg           config
 	proc          *processor
-	db            *Database
+	db            *database
 	staticHandler http.Handler
 	pageHandler   http.Handler
 }
 
-func newHandler(cfg config, proc *processor, db *Database) handler {
+func newHandler(cfg config, proc *processor, db *database) handler {
 	return handler{
 		cfg:           cfg,
 		proc:          proc,

@@ -9,11 +9,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type Database struct {
+type database struct {
 	db *sql.DB
 }
 
-func newDatabase(path string) (*Database, error) {
+func newDatabase(path string) (*database, error) {
 	db, err := sql.Open("sqlite3", path)
 	if err != nil {
 		return nil, err
@@ -37,11 +37,11 @@ func newDatabase(path string) (*Database, error) {
 		}
 	}
 
-	d := &Database{db: db}
+	d := &database{db: db}
 	return d, nil
 }
 
-func (d *Database) IsValidSession(id string) (bool, error) {
+func (d *database) IsValidSession(id string) (bool, error) {
 	rows, err := d.db.Query("SELECT * FROM Sessions WHERE Id = ?", id)
 	if err != nil {
 		return false, err
@@ -50,14 +50,14 @@ func (d *Database) IsValidSession(id string) (bool, error) {
 	return rows.Next(), nil
 }
 
-func (d *Database) AddSession(id, ip string) error {
+func (d *database) AddSession(id, ip string) error {
 	if _, err := d.db.Exec("INSERT OR REPLACE INTO Sessions (Id, TimeAdded, IpAddress) VALUES(?, ?, ?)", id, time.Now().Unix(), ip); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (d *Database) AddPage(pi PageInfo) error {
+func (d *database) AddPage(pi PageInfo) error {
 	q := "INSERT OR REPLACE INTO Pages (Id, OriginalUrl, Title, TimeAdded, Token) VALUES(?, ?, ?, ?, ?)"
 	if _, err := d.db.Exec(q, pi.Id, pi.OriginalURL, pi.Title, pi.TimeAdded, pi.Token); err != nil {
 		return err
@@ -65,7 +65,7 @@ func (d *Database) AddPage(pi PageInfo) error {
 	return nil
 }
 
-func (d *Database) GetPage(id string) (pi PageInfo, err error) {
+func (d *database) GetPage(id string) (pi PageInfo, err error) {
 	rows, err := d.db.Query("SELECT Id, OriginalUrl, Title, TimeAdded, Token FROM Pages WHERE Id = ?", id)
 	if err != nil {
 		return pi, err
@@ -80,7 +80,7 @@ func (d *Database) GetPage(id string) (pi PageInfo, err error) {
 	return pi, nil
 }
 
-func (d *Database) GetAllPages(archived bool, maxPages int) (pages []PageInfo, err error) {
+func (d *database) GetAllPages(archived bool, maxPages int) (pages []PageInfo, err error) {
 	q := "SELECT Id, OriginalUrl, Title, TimeAdded, Token FROM Pages WHERE Archived = ? ORDER BY TimeAdded DESC LIMIT ?"
 	rows, err := d.db.Query(q, archived, maxPages)
 	if err != nil {
@@ -97,7 +97,7 @@ func (d *Database) GetAllPages(archived bool, maxPages int) (pages []PageInfo, e
 	return pages, nil
 }
 
-func (d *Database) TogglePageArchived(id string) error {
+func (d *database) TogglePageArchived(id string) error {
 	if _, err := d.db.Exec("UPDATE Pages SET Archived = (Archived != 1) WHERE Id = ?", id); err != nil {
 		return err
 	}
