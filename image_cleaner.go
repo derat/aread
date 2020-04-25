@@ -1,13 +1,14 @@
 package main
 
 import (
-	"github.com/BurntSushi/graphics-go/graphics"
 	"image"
 	"image/color"
 	"image/jpeg"
 	"image/png"
 	"os"
 	"sync"
+
+	"golang.org/x/image/draw"
 )
 
 type ImageCleaner struct {
@@ -23,57 +24,53 @@ func newImageCleaner(cfg Config) *ImageCleaner {
 	return c
 }
 
-func (c *ImageCleaner) updateImage(origImg image.Image, imgFmt, filename string) error {
-	origWidth := origImg.Bounds().Max.X - origImg.Bounds().Min.X
-	origHeight := origImg.Bounds().Max.Y - origImg.Bounds().Min.Y
-	needsScale := origWidth > c.cfg.MaxImageWidth || origHeight > c.cfg.MaxImageHeight
-	needsOpaque := (origImg.ColorModel() == color.RGBAModel && !origImg.(*image.RGBA).Opaque()) ||
-		(origImg.ColorModel() == color.NRGBAModel && !origImg.(*image.NRGBA).Opaque())
+func (c *ImageCleaner) updateImage(src image.Image, imgFmt, filename string) error {
+	sb := src.Bounds()
+	needsScale := sb.Dx() > c.cfg.MaxImageWidth || sb.Dy() > c.cfg.MaxImageHeight
+	needsOpaque := (src.ColorModel() == color.RGBAModel && !src.(*image.RGBA).Opaque()) ||
+		(src.ColorModel() == color.NRGBAModel && !src.(*image.NRGBA).Opaque())
 	if !needsScale && !needsOpaque {
 		return nil
 	}
 
-	var newImg *image.NRGBA
+	var dst *image.NRGBA
+	var db image.Rectangle
 
 	if needsScale {
-		widthRatio := float64(origWidth) / float64(c.cfg.MaxImageWidth)
-		heightRatio := float64(origHeight) / float64(c.cfg.MaxImageHeight)
-		var newWidth, newHeight int
-		if widthRatio > heightRatio {
-			newWidth = c.cfg.MaxImageWidth
-			newHeight = int(float64(origHeight)/widthRatio + 0.5)
+		wr := float64(sb.Dx()) / float64(c.cfg.MaxImageWidth)
+		hr := float64(sb.Dy()) / float64(c.cfg.MaxImageHeight)
+		if wr > hr {
+			db = image.Rect(0, 0, c.cfg.MaxImageWidth, int(float64(sb.Dy())/wr+0.5))
 		} else {
-			newWidth = int(float64(origWidth)/heightRatio + 0.5)
-			newHeight = c.cfg.MaxImageHeight
+			db = image.Rect(0, 0, int(float64(sb.Dx())/hr+0.5), c.cfg.MaxImageHeight)
 		}
 
-		c.cfg.Logger.Printf("Scaling %v from %vx%v to %vx%v\n", filename, origWidth, origHeight, newWidth, newHeight)
-		newImg = image.NewNRGBA(image.Rectangle{image.Point{0, 0}, image.Point{newWidth, newHeight}})
-		if err := graphics.Scale(newImg, origImg); err != nil {
-			return err
-		}
+		c.cfg.Logger.Printf("Scaling %v from %vx%v to %vx%v\n",
+			filename, sb.Dx(), sb.Dy(), db.Dx(), db.Dy())
+		dst = image.NewNRGBA(db)
+		draw.ApproxBiLinear.Scale(dst, db, src, sb, draw.Src, nil)
 	}
 
 	// 2nd-gen Kindles can't handle partially-transparent images. Shocking.
 	if needsOpaque {
-		var srcImg image.Image
-		if newImg != nil {
-			srcImg = newImg
+		if dst != nil {
+			src = dst
+			sb = dst.Bounds()
 		} else {
-			srcImg = origImg
-			newImg = image.NewNRGBA(image.Rectangle{image.Point{0, 0}, image.Point{origWidth, origHeight}})
+			db = image.Rect(0, 0, sb.Dx(), sb.Dy())
+			dst = image.NewNRGBA(db)
 		}
 		c.cfg.Logger.Printf("Making %v opaque\n", filename)
-		for y := newImg.Bounds().Min.Y; y < newImg.Bounds().Max.Y; y++ {
-			for x := newImg.Bounds().Min.X; x < newImg.Bounds().Max.X; x++ {
-				cl := color.NRGBAModel.Convert(srcImg.At(x, y)).(color.NRGBA)
+		for y := 0; y < sb.Dy(); y++ {
+			for x := 0; x < sb.Dx(); x++ {
+				cl := color.NRGBAModel.Convert(src.At(sb.Min.X+x, sb.Min.Y+y)).(color.NRGBA)
 				if cl.A == 0 {
 					cl.R = 255
 					cl.G = 255
 					cl.B = 255
 					cl.A = 255
 				}
-				newImg.SetNRGBA(x, y, cl)
+				dst.SetNRGBA(db.Min.X+x, db.Min.Y+y, cl)
 			}
 		}
 	}
@@ -86,9 +83,9 @@ func (c *ImageCleaner) updateImage(origImg image.Image, imgFmt, filename string)
 
 	switch imgFmt {
 	case "png":
-		err = png.Encode(f, newImg)
+		err = png.Encode(f, dst)
 	case "jpeg":
-		err = jpeg.Encode(f, newImg, &jpeg.Options{Quality: c.cfg.JpegQuality})
+		err = jpeg.Encode(f, dst, &jpeg.Options{Quality: c.cfg.JpegQuality})
 	default:
 		c.cfg.Logger.Fatalf("Unhandled image format %v for %v", imgFmt, filename)
 	}
