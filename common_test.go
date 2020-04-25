@@ -38,7 +38,7 @@ func TestGetLocalImageFilename(t *testing.T) {
 		{"http://a.com/img", ".jpg"},
 		{"http://a.com/img.foo", ".jpg"},
 	} {
-		expected := getSha1String(tc.url) + tc.expectedSuffix
+		expected := getSHA1String(tc.url) + tc.expectedSuffix
 		actual := getLocalImageFilename(tc.url)
 		if actual != expected {
 			t.Errorf("got local filename %q for %v, expected %v", actual, tc.url, expected)

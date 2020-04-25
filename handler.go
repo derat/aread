@@ -37,7 +37,7 @@ func (h handler) getStylesheets() []string {
 }
 
 func (h handler) getAddToken() string {
-	return getSha1String(h.cfg.Username + "|" + h.cfg.Password)
+	return getSHA1String(h.cfg.Username + "|" + h.cfg.Password)
 }
 
 func (h handler) makeBookmarklet(baseURL string, token string, kindle bool) string {
@@ -251,7 +251,7 @@ func (h handler) handleList(w http.ResponseWriter, r *http.Request) {
 func (h handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 	if len(r.FormValue("p")) > 0 {
 		if r.FormValue("u") == h.cfg.Username && r.FormValue("p") == h.cfg.Password {
-			id := getSha1String(h.cfg.Username + "|" + h.cfg.Password + "|" + strconv.FormatInt(time.Now().UnixNano(), 10))
+			id := getSHA1String(h.cfg.Username + "|" + h.cfg.Password + "|" + strconv.FormatInt(time.Now().UnixNano(), 10))
 			if err := h.db.AddSession(id, r.RemoteAddr); err != nil {
 				h.cfg.Logger.Printf("Unable to insert session: %v\n", err)
 				http.Error(w, fmt.Sprintf("Unable to insert session: %v", err), http.StatusInternalServerError)

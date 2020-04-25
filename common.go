@@ -59,7 +59,7 @@ func getHost(urlStr string) string {
 	return u.Host
 }
 
-func getSha1String(input string) string {
+func getSHA1String(input string) string {
 	h := sha1.New()
 	io.WriteString(h, input)
 	return fmt.Sprintf("%x", h.Sum(nil))
@@ -138,7 +138,7 @@ func getLocalImageFilename(url string) string {
 	if _, ok := supportedImageExtensions[ext]; !ok {
 		ext = defaultImageExtension
 	}
-	return getSha1String(url) + ext
+	return getSHA1String(url) + ext
 }
 
 func readJSONFile(path string, out interface{}) error {

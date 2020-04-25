@@ -422,10 +422,10 @@ func (p *processor) ProcessURL(contentURL string, fromFriend bool) (pi PageInfo,
 		return pi, fmt.Errorf("failed rewriting URL: %v", err)
 	}
 
-	pi.Id = getSha1String(contentURL)
+	pi.Id = getSHA1String(contentURL)
 	pi.OriginalURL = contentURL
 	pi.TimeAdded = time.Now().Unix()
-	pi.Token = getSha1String(fmt.Sprintf("%s|%s|%s", p.cfg.Username, p.cfg.Password, contentURL))
+	pi.Token = getSHA1String(fmt.Sprintf("%s|%s|%s", p.cfg.Username, p.cfg.Password, contentURL))
 	pi.FromFriend = fromFriend
 
 	outDir := filepath.Join(p.cfg.PageDir, pi.Id)
