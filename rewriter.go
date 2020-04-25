@@ -44,15 +44,15 @@ func getAttrValue(token *html.Token, name string) string {
 	return ""
 }
 
-type Rewriter struct {
+type rewriter struct {
 	cfg config
 }
 
 // readHiddenTagsFile returns maps containing the tags that should be hidden for url.
-func (r *Rewriter) readHiddenTagsFile(url string) (*hiddenIdsMap, *hiddenTagsMap, error) {
+func (rw *rewriter) readHiddenTagsFile(url string) (*hiddenIdsMap, *hiddenTagsMap, error) {
 	ids := make(hiddenIdsMap)
 	tags := make(hiddenTagsMap)
-	if len(r.cfg.HiddenTagsFile) == 0 {
+	if len(rw.cfg.HiddenTagsFile) == 0 {
 		return &ids, &tags, nil
 	}
 
@@ -62,7 +62,7 @@ func (r *Rewriter) readHiddenTagsFile(url string) (*hiddenIdsMap, *hiddenTagsMap
 	// "*.class" matches all elements with class "class".
 	// "#id" matches the element with ID "id".
 	data := make(map[string][]string)
-	if err := readJSONFile(r.cfg.HiddenTagsFile, &data); err != nil {
+	if err := readJSONFile(rw.cfg.HiddenTagsFile, &data); err != nil {
 		return nil, nil, err
 	}
 
@@ -94,7 +94,7 @@ func (r *Rewriter) readHiddenTagsFile(url string) (*hiddenIdsMap, *hiddenTagsMap
 	return &ids, &tags, nil
 }
 
-func (r *Rewriter) shouldHideToken(t *html.Token, ids *hiddenIdsMap, tags *hiddenTagsMap) bool {
+func (rw *rewriter) shouldHideToken(t *html.Token, ids *hiddenIdsMap, tags *hiddenTagsMap) bool {
 	id := getAttrValue(t, "id")
 	if len(id) > 0 && (*ids)[id] {
 		return true
@@ -125,21 +125,21 @@ func (r *Rewriter) shouldHideToken(t *html.Token, ids *hiddenIdsMap, tags *hidde
 // they had srcset attributes. Specifically, an <img> element with both src and
 // srcset attributes seems to end up with just a src attribute containing a
 // URL-escaped copy of the srcset value. That makes absolutely no sense.
-func (r *Rewriter) fixImageURL(url string) string {
+func (rw *rewriter) fixImageURL(url string) string {
 	if m, _ := regexp.MatchString("%20\\d+[wx](,|$)", url); !m {
 		return url
 	}
 	// Just chop off the first space and everything after it.
 	index := strings.Index(url, "%20")
 	newURL := url[0:index]
-	r.cfg.Logger.Printf("Rewrote broken-looking image URL %q to %q\n", url, newURL)
+	rw.cfg.Logger.Printf("Rewrote broken-looking image URL %q to %q\n", url, newURL)
 	return newURL
 }
 
 // RewriteContent rewrites HTML that is passed to it. imageURLs maps from local
 // filename to the original remote image URL.
-func (r *Rewriter) RewriteContent(input, url string) (content string, imageURLs map[string]string, err error) {
-	hiddenIds, hiddenTags, err := r.readHiddenTagsFile(url)
+func (rw *rewriter) RewriteContent(input, url string) (content string, imageURLs map[string]string, err error) {
+	hiddenIds, hiddenTags, err := rw.readHiddenTagsFile(url)
 	if err != nil {
 		return "", nil, err
 	}
@@ -170,8 +170,8 @@ func (r *Rewriter) RewriteContent(input, url string) (content string, imageURLs 
 			continue
 		}
 
-		if r.shouldHideToken(&t, hiddenIds, hiddenTags) {
-			r.cfg.Logger.Printf("Hiding <%v> token with id %q and class(es) %q\n",
+		if rw.shouldHideToken(&t, hiddenIds, hiddenTags) {
+			rw.cfg.Logger.Printf("Hiding <%v> token with id %q and class(es) %q\n",
 				t.Data, getAttrValue(&t, "id"), getAttrValue(&t, "class"))
 			if isStart {
 				hideDepth = 1
@@ -188,8 +188,8 @@ func (r *Rewriter) RewriteContent(input, url string) (content string, imageURLs 
 				attr := &t.Attr[i]
 				if attr.Key == "src" && len(attr.Val) > 0 {
 					hasSrc = true
-					if r.cfg.DownloadImages {
-						imageURL := r.fixImageURL(attr.Val)
+					if rw.cfg.DownloadImages {
+						imageURL := rw.fixImageURL(attr.Val)
 						filename := getLocalImageFilename(imageURL)
 						imageURLs[filename] = imageURL
 						attr.Val = filename

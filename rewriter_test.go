@@ -23,7 +23,7 @@ var expectedImages []string = []string{
 }
 
 func TestBasic(t *testing.T) {
-	rw := Rewriter{config{
+	rw := rewriter{config{
 		HiddenTagsFile: hiddenTagsPath,
 		Logger:         log.New(os.Stderr, "", log.LstdFlags),
 		DownloadImages: true,

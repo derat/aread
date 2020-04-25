@@ -266,8 +266,8 @@ func (p *processor) downloadContent(pi PageInfo, dir string) (title string, err 
 
 	// filename -> URL
 	var imageURLs map[string]string
-	rewriter := Rewriter{p.cfg}
-	content, imageURLs, err = rewriter.RewriteContent(content, pi.OriginalURL)
+	rw := rewriter{p.cfg}
+	content, imageURLs, err = rw.RewriteContent(content, pi.OriginalURL)
 	if err != nil {
 		return title, fmt.Errorf("unable to process content: %v", err)
 	}
