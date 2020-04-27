@@ -1,3 +1,7 @@
+// Copyright 2020 Daniel Erat.
+// All rights reserved.
+
+// Package proc processes web pages.
 package proc
 
 import (

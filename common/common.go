@@ -1,3 +1,7 @@
+// Copyright 2020 Daniel Erat.
+// All rights reserved.
+
+// Package common contains constants and functions shared by other packages.
 package common
 
 import (
