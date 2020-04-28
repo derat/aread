@@ -19,3 +19,25 @@ Also create `url_patterns.json`, `bad_content.json`, and `hidden_tags.json` as
 described in the same struct.
 
 Then run a command like `aread --config=/var/lib/aread/config.json`.
+
+If [AppArmor] is installed, a file similar to the following can be placed in the
+appropriate location (e.g. `/etc/apparmor.d/usr.local.bin.kindlegen`) to
+restrict the `kindlegen` process:
+
+```
+# vim:syntax=apparmor
+
+#include <tunables/global>
+
+/usr/local/bin/kindlegen {
+  #include <abstractions/base>
+
+  owner /var/lib/aread/pages/** r,
+  owner /var/lib/aread/pages/*/** w,
+
+  owner /tmp/** rw,
+  /tmp/ rw,
+}
+```
+
+[AppArmor]: https://wiki.ubuntu.com/AppArmor
