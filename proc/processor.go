@@ -347,9 +347,9 @@ func (p *Processor) downloadContent(pi common.PageInfo, dir string) (title strin
 }
 
 func (p *Processor) buildDoc(dir string) error {
-	c := exec.Command("docker", "run", "--rm", "-v", dir+":/source",
-		"jagregory/kindlegen", kindleFile, "-o", docFile)
-	o, err := c.CombinedOutput()
+	cmd := exec.Command(p.cfg.KindlegenPath, kindleFile, "-o", docFile)
+	cmd.Dir = dir
+	o, err := cmd.CombinedOutput()
 	p.cfg.Logger.Printf("kindlegen output:%s", strings.Replace("\n"+string(o), "\n", "\n  ", -1))
 	if err != nil {
 		// kindlegen returns 1 for warnings and 2 for fatal errors.

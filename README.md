@@ -11,7 +11,7 @@ interface.
 
 ## Configuration
 
-Install [Mercury Parser] and [Docker] (which is used to run `kindlegen`).
+Install [Mercury Parser] and [KindleGen].
 
 Create a directory (e.g. `/var/lib/aread`) and create a `config.json` file
 corresponding to the `Config` struct in [common/config.go](./common/config.go).
@@ -19,5 +19,3 @@ Also create `url_patterns.json`, `bad_content.json`, and `hidden_tags.json` as
 described in the same struct.
 
 Then run a command like `aread --config=/var/lib/aread/config.json`.
-
-[Docker]: https://www.docker.com/

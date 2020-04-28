@@ -15,6 +15,10 @@ type Config struct {
 	// e.g. "/home/user/.node/bin/mercury-parser". See installation instructions
 	// at https://github.com/postlight/mercury-parser.
 	ParserPath string `json:"parserPath"`
+	// KindlegenPath contains the path to the kindlegen executable,
+	// e.g. "/usr/local/bin/kindlegen". kindlegen is available from
+	// https://www.amazon.com/gp/feature.html?ie=UTF8&docId=1000765211.
+	KindlegenPath string `json:"kindlegenPath"`
 	// BaseURL contains the base URL at which the site is served,
 	// e.g. "https://example.org/aread".
 	BaseURL string `json:"baseUrl"`
