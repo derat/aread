@@ -1,5 +1,7 @@
 # aread
 
+[![Build Status](https://travis-ci.org/derat/aread.svg?branch=master)](https://travis-ci.org/derat/aread)
+
 This is a Go server that downloads and simplifies web pages so that they can be
 read later. Simplification happens via [Mercury Parser], and the resulting pages
 are also converted to Amazon's `.mobi` format using [KindleGen] and sent to a
