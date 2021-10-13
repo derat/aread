@@ -46,14 +46,24 @@ func (h handler) getAddToken() string {
 	return common.SHA1String(h.cfg.Username + "|" + h.cfg.Password)
 }
 
-func (h handler) makeBookmarklet(baseURL string, token string, kindle bool) string {
-	getCurURL := "encodeURIComponent(document.URL)"
+type bookmarkletFlags uint32
+
+const (
+	sendToKindle bookmarkletFlags = 1 << iota
+	archive
+)
+
+func (h handler) makeBookmarklet(baseURL string, token string, flags bookmarkletFlags) string {
 	addURL := joinURLAndPath(baseURL, common.AddURLPath) +
-		fmt.Sprintf("?%s=\"+%s+\"&%s=%s", common.AddURLParam, getCurURL, common.TokenParam, token)
-	if kindle {
+		fmt.Sprintf(`?%s="+encodeURIComponent(document.URL)+"&%s=%s`,
+			common.AddURLParam, common.TokenParam, token)
+	if flags&sendToKindle != 0 {
 		addURL += fmt.Sprintf("&%s=1", common.AddKindleParam)
 	}
-	return "javascript:{window.location.href=\"" + addURL + "\";};void(0);"
+	if flags&archive != 0 {
+		addURL += fmt.Sprintf("&%s=1", common.ArchiveParam)
+	}
+	return `javascript:{window.location.href="` + addURL + `";};void(0);`
 }
 
 func (h handler) serveTemplate(w http.ResponseWriter, t string, d interface{}, fm template.FuncMap) {
@@ -95,10 +105,17 @@ func (h handler) handleAdd(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Failed to process %v: %v", u, err), http.StatusInternalServerError)
 			return
 		}
-		if err = h.db.AddPage(pi); err != nil {
+		if err := h.db.AddPage(pi); err != nil {
 			h.cfg.Logger.Println(err)
 			http.Error(w, fmt.Sprintf("Failed to add to database: %v", err), http.StatusInternalServerError)
 			return
+		}
+		if r.FormValue(common.ArchiveParam) == "1" {
+			if err := h.db.TogglePageArchived(pi.Id); err != nil {
+				h.cfg.Logger.Println(err)
+				http.Error(w, fmt.Sprintf("Failed to archive page: %v", err), http.StatusInternalServerError)
+				return
+			}
 		}
 		if r.FormValue(common.AddKindleParam) == "1" {
 			if err = h.proc.SendToKindle(pi.Id); err != nil {
@@ -186,13 +203,15 @@ func (h handler) handleList(w http.ResponseWriter, r *http.Request) {
 		ToggleListString      string
 		AddPath               string
 		ReadBookmarkletHref   template.HTMLAttr
+		SaveBookmarkletHref   template.HTMLAttr
 		KindleBookmarkletHref template.HTMLAttr
 		FriendBookmarkletHref template.HTMLAttr
 	}{
 		PagesPath:             h.cfg.GetPath(common.PagesURLPath),
 		AddPath:               h.cfg.GetPath(common.AddURLPath),
-		ReadBookmarkletHref:   template.HTMLAttr("href=" + h.makeBookmarklet(h.cfg.BaseURL, h.getAddToken(), false)),
-		KindleBookmarkletHref: template.HTMLAttr("href=" + h.makeBookmarklet(h.cfg.BaseURL, h.getAddToken(), true)),
+		ReadBookmarkletHref:   template.HTMLAttr("href=" + h.makeBookmarklet(h.cfg.BaseURL, h.getAddToken(), 0)),
+		SaveBookmarkletHref:   template.HTMLAttr("href=" + h.makeBookmarklet(h.cfg.BaseURL, h.getAddToken(), archive)),
+		KindleBookmarkletHref: template.HTMLAttr("href=" + h.makeBookmarklet(h.cfg.BaseURL, h.getAddToken(), sendToKindle)),
 	}
 
 	archived := r.FormValue("a") == "1"
@@ -209,7 +228,8 @@ func (h handler) handleList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(h.cfg.FriendBaseURL) > 0 && len(h.cfg.FriendRemoteToken) > 0 {
-		d.FriendBookmarkletHref = template.HTMLAttr("href=" + h.makeBookmarklet(h.cfg.FriendBaseURL, h.cfg.FriendRemoteToken, true))
+		d.FriendBookmarkletHref =
+			template.HTMLAttr("href=" + h.makeBookmarklet(h.cfg.FriendBaseURL, h.cfg.FriendRemoteToken, sendToKindle))
 	}
 
 	var err error
@@ -247,9 +267,10 @@ func (h handler) handleList(w http.ResponseWriter, r *http.Request) {
     {{ end }}
     <div>
       <span class="bookmarklets-label">Bookmarklets:</span>
-      <div class="bookmarklet"><a {{.ReadBookmarkletHref}}>Add to list</a></div>
-      <div class="bookmarklet"><a {{.KindleBookmarkletHref}}>Send to Kindle</a></div>
-	  {{if .FriendBookmarkletHref}}<div class="bookmarklet"><a {{.FriendBookmarkletHref}}>Send to Friend's Kindle</a></div>{{end}}
+      <div class="bookmarklet"><a {{.ReadBookmarkletHref}}>Add</a></div>
+      <div class="bookmarklet"><a {{.SaveBookmarkletHref}}>Save</a></div>
+      <div class="bookmarklet"><a {{.KindleBookmarkletHref}}>Kindle</a></div>
+	  {{if .FriendBookmarkletHref}}<div class="bookmarklet"><a {{.FriendBookmarkletHref}}>Friend's Kindle</a></div>{{end}}
     </div>
   </body>
 </html>`, d, fm)

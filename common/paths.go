@@ -18,6 +18,7 @@ const (
 	// Query parameter names for HTTP requests.
 	AddKindleParam = "k"
 	AddURLParam    = "u"
+	ArchiveParam   = "a"
 	IDParam        = "i"
 	RedirectParam  = "r"
 	TokenParam     = "t"
