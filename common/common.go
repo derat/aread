@@ -89,8 +89,12 @@ func WriteHeader(w io.Writer, cfg *Config, stylesheets []string, title, favicon,
   <head>
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    {{if .Author}}<meta content="{{.Author}}" name="author"/>{{end}}
     <title>{{.Title}}</title>
+    <meta name="DCTERMS.title" content="{{.Title}}"/>
+    {{if .Author -}}
+    <meta name="author" content="{{.Author}}"/>
+    <meta name="DCTERMS.creator" content="{{.Author}}"/>
+    {{- end}}
     {{range .Stylesheets}}<link rel="stylesheet" href="{{.}}"/>{{end}}
     <link rel="icon" href="{{.Favicon}}"/>
   </head>
