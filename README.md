@@ -1,6 +1,6 @@
 # aread
 
-![Build Status](https://storage.googleapis.com/derat-build-badges/acce62f7-e2ac-4df7-aa51-d65bcadc5866.svg)
+[![Build Status](https://storage.googleapis.com/derat-build-badges/acce62f7-e2ac-4df7-aa51-d65bcadc5866.svg)](https://storage.googleapis.com/derat-build-badges/acce62f7-e2ac-4df7-aa51-d65bcadc5866.html)
 
 This is a Go server that downloads and simplifies web pages so that they can be
 read later. Simplification happens via [Mercury Parser], and the resulting pages
