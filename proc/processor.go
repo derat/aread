@@ -42,18 +42,6 @@ const (
 	httpRetryDelayMs = 1000
 )
 
-func getStringValue(object *map[string]interface{}, name string) (string, error) {
-	data, ok := (*object)[name]
-	if !ok {
-		return "", fmt.Errorf("no property %q in object", name)
-	}
-	s, ok := data.(string)
-	if !ok {
-		return "", fmt.Errorf("property %q is not a string", name)
-	}
-	return s, nil
-}
-
 func getFaviconURL(origURL string) (string, error) {
 	u, err := url.Parse(origURL)
 	if err != nil {
@@ -209,8 +197,14 @@ func (p *Processor) downloadContent(pi common.PageInfo, dir string) (title strin
 	if err != nil {
 		return "", err
 	}
-	o := make(map[string]interface{}) // TODO: This is dumb.
-	if err = json.Unmarshal(b, &o); err != nil {
+	var obj struct {
+		Content       string `json:"content"`
+		Title         string `json:"title"`
+		Author        string `json:"author"`
+		DatePublished string `json:"date_published"`
+		NextPageURL   string `json:"next_page_url"`
+	}
+	if err = json.Unmarshal(b, &obj); err != nil {
 		return "", fmt.Errorf("unable to unmarshal JSON: %v", err)
 	}
 
@@ -237,46 +231,41 @@ func (p *Processor) downloadContent(pi common.PageInfo, dir string) (title strin
 		ListPath:    p.cfg.GetPath(),
 	}
 
-	content, err := getStringValue(&o, "content")
-	if err != nil {
-		return title, fmt.Errorf("unable to get content: %v", err)
+	if obj.Content == "" {
+		return title, errors.New("no content")
 	}
 	if p.cfg.Verbose {
-		p.cfg.Logger.Printf("Content:\n%v", content)
+		p.cfg.Logger.Printf("Content:\n%v", obj.Content)
 	}
 
-	if err = p.checkContent(pi, content); err != nil {
+	if err = p.checkContent(pi, obj.Content); err != nil {
 		return title, fmt.Errorf("bad content: %v", err)
 	}
 
-	title, _ = getStringValue(&o, "title")
-	if title == "" {
-		title = pi.OriginalURL
+	if obj.Title == "" {
+		obj.Title = pi.OriginalURL
 	}
 	if pi.FromFriend {
-		title = p.cfg.FriendTitlePrefix + title
+		obj.Title = p.cfg.FriendTitlePrefix + obj.Title
 	}
 
-	d.Title = title
-	d.Author, _ = getStringValue(&o, "author")
+	d.Title = obj.Title
+	d.Author = obj.Author
 
-	rawDate, _ := getStringValue(&o, "date_published")
-	if rawDate != "" {
-		if parsedDate, err := time.Parse("2006-01-02 15:04:05", rawDate); err == nil {
-			d.PubDate = parsedDate.Format("Monday, January 2, 2006")
+	if obj.DatePublished != "" {
+		if date, err := time.Parse("2006-01-02 15:04:05", obj.DatePublished); err == nil {
+			d.PubDate = date.Format("Monday, January 2, 2006")
 		}
 	}
 
 	// TODO: Does this ever get set?
-	nextPageURL, _ := getStringValue(&o, "next_page_url")
-	if nextPageURL != "" {
-		p.cfg.Logger.Printf("Got next page URL %v", nextPageURL)
+	if obj.NextPageURL != "" {
+		p.cfg.Logger.Printf("Got next page URL %v", obj.NextPageURL)
 	}
 
 	// filename -> URL
-	var imageURLs map[string]string
 	rw := rewriter{p.cfg}
-	content, imageURLs, err = rw.rewriteContent(content, pi.OriginalURL)
+	content, imageURLs, err := rw.rewriteContent(obj.Content, pi.OriginalURL)
 	if err != nil {
 		return title, fmt.Errorf("unable to process content: %v", err)
 	}
