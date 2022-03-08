@@ -192,12 +192,16 @@ func (p *Processor) checkContent(pi common.PageInfo, content string) error {
 	return nil
 }
 
-func (p *Processor) downloadContent(pi common.PageInfo, dir string) (title string, err error) {
+// downloadContent downloads the specified page.
+// The page's title is returned.
+func (p *Processor) downloadContent(pi common.PageInfo, dir string) (string, error) {
 	b, err := exec.Command(p.cfg.ParserPath, pi.OriginalURL).Output()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("parser failed: %v", err)
 	}
 	var obj struct {
+		Error         bool   `json:"error"`
+		Message       string `json:"message"`
 		Content       string `json:"content"`
 		Title         string `json:"title"`
 		Author        string `json:"author"`
@@ -205,7 +209,7 @@ func (p *Processor) downloadContent(pi common.PageInfo, dir string) (title strin
 		NextPageURL   string `json:"next_page_url"`
 	}
 	if err = json.Unmarshal(b, &obj); err != nil {
-		return "", fmt.Errorf("unable to unmarshal JSON: %v", err)
+		return "", fmt.Errorf("unable to unmarshal parser JSON: %v", err)
 	}
 
 	queryParams := fmt.Sprintf("?%s=%s&%s=%s&%s=%s",
@@ -231,15 +235,18 @@ func (p *Processor) downloadContent(pi common.PageInfo, dir string) (title strin
 		ListPath:    p.cfg.GetPath(),
 	}
 
+	if obj.Error {
+		return obj.Title, fmt.Errorf("parser failed: %v", obj.Message)
+	}
 	if obj.Content == "" {
-		return title, errors.New("no content")
+		return obj.Title, errors.New("no content")
 	}
 	if p.cfg.Verbose {
 		p.cfg.Logger.Printf("Content:\n%v", obj.Content)
 	}
 
 	if err = p.checkContent(pi, obj.Content); err != nil {
-		return title, fmt.Errorf("bad content: %v", err)
+		return obj.Title, fmt.Errorf("bad content: %v", err)
 	}
 
 	if obj.Title == "" {
@@ -267,7 +274,7 @@ func (p *Processor) downloadContent(pi common.PageInfo, dir string) (title strin
 	rw := rewriter{p.cfg}
 	content, imageURLs, err := rw.rewriteContent(obj.Content, pi.OriginalURL)
 	if err != nil {
-		return title, fmt.Errorf("unable to process content: %v", err)
+		return obj.Title, fmt.Errorf("unable to process content: %v", err)
 	}
 	d.Content = template.HTML(content)
 
@@ -294,18 +301,18 @@ func (p *Processor) downloadContent(pi common.PageInfo, dir string) (title strin
 	cssFiles := []string{common.CommonCSSFile, common.PageCSSFile}
 	for _, file := range cssFiles {
 		if err = copyFile(filepath.Join(dir, file), filepath.Join(p.cfg.StaticDir, file)); err != nil {
-			return title, err
+			return obj.Title, err
 		}
 	}
 
 	for _, filename := range []string{indexFile, kindleFile} {
 		contentFile, err := os.Create(filepath.Join(dir, filename))
 		if err != nil {
-			return title, err
+			return obj.Title, err
 		}
 		defer contentFile.Close()
 
-		common.WriteHeader(contentFile, p.cfg, cssFiles, title, faviconFilename, d.Author)
+		common.WriteHeader(contentFile, p.cfg, cssFiles, obj.Title, faviconFilename, d.Author)
 		t := `
   <body>
     <h1 id="title-header">{{.Title}}</h1>
@@ -328,11 +335,11 @@ func (p *Processor) downloadContent(pi common.PageInfo, dir string) (title strin
 </html>`
 		d.ForWeb = filename != kindleFile
 		if err := common.WriteTemplate(contentFile, p.cfg, t, d, template.FuncMap{}); err != nil {
-			return title, fmt.Errorf("failed to execute page template: %v", err)
+			return obj.Title, fmt.Errorf("failed to execute page template: %v", err)
 		}
 	}
 
-	return title, nil
+	return obj.Title, nil
 }
 
 func (p *Processor) buildDoc(dir string) error {
