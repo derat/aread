@@ -55,7 +55,7 @@ const (
 
 func (h handler) makeBookmarklet(baseURL string, token string, flags bookmarkletFlags) string {
 	addURL := joinURLAndPath(baseURL, common.AddURLPath) +
-		fmt.Sprintf(`?%s="+encodeURIComponent(document.URL)+"&%s=%s`,
+		fmt.Sprintf(`?%s="+encodeURIComponent(window.location.href)+"&%s=%s`,
 			common.AddURLParam, common.TokenParam, token)
 	if flags&sendToKindle != 0 {
 		addURL += fmt.Sprintf("&%s=1", common.AddKindleParam)
