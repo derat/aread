@@ -1,10 +1,25 @@
-// addPage() and goToReadingList() run async, so pass window.close to be run on completion.
-document.getElementById('read-later').addEventListener('click', function() {
-  addPage(null, false, window.close);
-});
-document.getElementById('send-to-kindle').addEventListener('click', function() {
-  addPage(null, true, window.close);
-});
-document.getElementById('reading-list').addEventListener('click', function() {
-  goToReadingList(window.close);
-});
+// Copyright 2022 Daniel Erat.
+// All rights reserved.
+
+import { $, openReadingList, addPage } from './common.js';
+
+$('save-page').addEventListener('click', () =>
+  addPage({ archive: true })
+    .then(window.close)
+    .catch((e) => alert(e))
+);
+$('read-later').addEventListener('click', () =>
+  addPage()
+    .then(window.close)
+    .catch((e) => alert(e))
+);
+$('send-to-kindle').addEventListener('click', () =>
+  addPage({ kindle: true })
+    .then(window.close)
+    .catch((e) => alert(e))
+);
+$('reading-list').addEventListener('click', () =>
+  openReadingList()
+    .then(window.close)
+    .catch((e) => alert(e))
+);

@@ -2,9 +2,26 @@
 <html>
   <head>
     <title>aread options</title>
-    <link href="options.css" rel="stylesheet" />
+    <style>
+      body {
+        font-size: 14px;
+        margin: 12px;
+      }
+      table {
+        border-spacing: 4px;
+      }
+      #url {
+        width: 300px;
+      }
+      #username,
+      #password {
+        width: 100px;
+      }
+    </style>
+    <script src="options.js" type="module"></script>
   </head>
   <body>
+    <h1>aread</h1>
     <table>
       <tr>
         <td>URL</td>
@@ -12,8 +29,7 @@
       </tr>
       <tr>
         <td colspan="2">
-          (Username and password are used to generate a token but don't get
-          saved.)
+          (Username and password are used to generate a token but don't get saved.)
         </td>
       </tr>
       <tr>
@@ -28,8 +44,5 @@
         <td><button id="save">Save</button></td>
       </tr>
     </table>
-
-    <script src="sha1.js"></script>
-    <script src="options.js"></script>
   </body>
 </html>

@@ -2,13 +2,30 @@
 <html>
   <head>
     <title>aread</title>
-    <link href="popup.css" rel="stylesheet" />
+    <style>
+      body {
+        width: 100px;
+        font-family: 'Arial', sans;
+        font-size: 12px;
+      }
+      div {
+        margin: 5px;
+      }
+      a {
+        text-decoration: none;
+        cursor: pointer;
+        color: black;
+      }
+      a:hover {
+        color: #666;
+      }
+    </style>
+    <script src="popup.js" type="module"></script>
   </head>
   <body>
+    <div><a id="save-page">Save page</a></div>
     <div><a id="read-later">Read later</a></div>
     <div><a id="send-to-kindle">Send to Kindle</a></div>
     <div><a id="reading-list">Reading list</a></div>
-    <script src="common.js"></script>
-    <script src="popup.js"></script>
   </body>
 </html>
