@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "aread",
-  "version": "12",
+  "version": "13",
   "permissions": ["activeTab", "scripting", "storage"],
   "icons": {
     "16": "icons/16.png",
@@ -29,13 +29,13 @@
     "save-page": {
       "description": "Save page",
       "suggested_key": {
-        "default": "Ctrl+Shift+S"
+        "default": "Ctrl+Alt+S"
       }
     },
     "send-to-kindle": {
       "description": "Send to Kindle",
       "suggested_key": {
-        "default": "Ctrl+Shift+K"
+        "default": "Ctrl+Alt+K"
       }
     }
   }
