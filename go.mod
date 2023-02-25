@@ -1,6 +1,6 @@
 module github.com/derat/aread
 
-go 1.12
+go 1.19
 
 require (
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
