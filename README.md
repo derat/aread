@@ -1,3 +1,1 @@
-# aread
-
-This repository has moved to <https://codeberg.org/derat/aread>.
+# Moved to <https://codeberg.org/derat/aread>
